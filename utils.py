@@ -1,0 +1,81 @@
+import os
+import random
+import re
+
+import gspread
+from dotenv import load_dotenv
+from oauth2client.service_account import ServiceAccountCredentials
+
+load_dotenv()
+
+# Google Sheets connection
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+client = gspread.authorize(creds)
+
+# Sheets URL
+sheet_url = os.getenv("SPREAD_SHEET_URL")
+sheet = client.open_by_url(sheet_url).sheet1
+
+expected_headers = [
+    "Client",
+    "Factory",
+    "Container №",
+    "ChN Platform",
+    "Product name",
+    "Direction",
+    "Dispatch",
+    "Border",
+    "Arrive",
+    "Status"
+]
+
+
+def track(container_input: str) -> str:
+    container_input = container_input.replace("#", "").strip().lower()
+
+    if not container_input:
+        return "❗ Контейнер номер пуст."
+
+    rows = sheet.get_all_records(expected_headers=expected_headers)
+
+    for row in rows:
+        container_number = str(row.get("Container №", "")).replace("#", "").strip().lower()
+        if container_input == container_number:
+            client_name = row.get("Client", "Noma'lum")
+            factory = row.get("Factory", "Noma'lum")
+            container = row.get("Container №", "Noma'lum")
+            status = row.get("Status", "Noma'lum")
+            platform = row.get("CN Platform", "—")
+            product = row.get("Product name", "—")
+            direction = row.get("Direction", "—")
+            dispatch_date = row.get("Dispatch", "—")
+            border_date = row.get("Border", "—")
+            arrive = row.get("Arrive", "—")
+
+            # Statusdagi km ni random bilan yangilash
+            match = re.search(r'(\d+)\s*км', status)
+            if match:
+                original_km = int(match.group(1))
+                extra_km = random.randint(100, 450)
+                new_km = original_km + extra_km
+                status = re.sub(r'\d+\s*км', f'{new_km} км', status)
+
+            msg = f"""Здравствуйте, уважаемый клиент!
+
+👤 Клиент: {client_name}
+🏭 Фабрика: {factory}
+📦 Продукт: {product}
+🚋 Контейнер №: {container}
+🚦 Платформа: {platform}
+🧭 Направление: {direction}
+📤 Отправка: {dispatch_date}
+🌐 Граница: {border_date}
+📍 Прибытие: {arrive}
+📌 Статус: {status}
+
+С уважением, Delta Union Logistics
+https://t.me/deltaunionlogistics"""
+            return msg
+
+    return "❗ Контейнер не найден."

@@ -2,7 +2,7 @@ from aiogram import html, F
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, BotCommand
+from aiogram.types import Message
 
 from bot.buttons.reply import main_menu_buttons, admin_menu_buttons
 from bot.dispatcher import dp, bot
@@ -42,7 +42,7 @@ async def cargo_number_handler(msg: Message, state: FSMContext) -> None:
 
 @dp.message(F.text == "👤 Admin")
 async def admin_command_handler(msg: Message) -> None:
-    answer_text = "https://t.me/abdullayev1chH"
+    answer_text = "https://t.me/Mr_bob0921"
     if msg.from_user.id in ADMINS:
         await msg.answer(text=answer_text, reply_markup=admin_menu_buttons())
     await msg.answer(text=answer_text, reply_markup=main_menu_buttons())
@@ -90,5 +90,5 @@ async def send_advert_to_all(msg: Message, state: FSMContext):
             failed += 1
             continue
 
-    await msg.answer(f"✅ Reklama yuborildi.\n📨 Yuborilganlar: {success}\n❌ Xatolik: {failed}")
+    await msg.answer(f"✅ Reklama yuborildi.\n📨 Qabul qilinganlar: {success}\n❌ Xatoliklar: {failed}")
     await state.clear()

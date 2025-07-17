@@ -38,7 +38,7 @@ def track(container_input: str) -> str:
     container_input = container_input.replace("#", "").strip().lower()
 
     if not container_input:
-        return "❗ Контейнер номер пуст."
+        return "❗ Kontayner raqami kiritilmagan."
 
     rows = sheet.get_all_records(expected_headers=expected_headers)
 
@@ -64,24 +64,24 @@ def track(container_input: str) -> str:
                 new_km = original_km + extra_km
                 status = re.sub(r'\d+\s*км', f'{new_km} км', status)
 
-            msg = f"""Здравствуйте, уважаемый клиент!
+            msg = f"""Hurmatli mijoz, assalomu alaykum!
 
-👤 Клиент: {client_name}
-🏭 Фабрика: {factory}
-📦 Продукт: {product}
-🚋 Контейнер №: {container}
-🚦 Платформа: {platform}
-🧭 Направление: {direction}
-📤 Отправка: {dispatch_date}
-🌐 Граница: {border_date}
-📍 Прибытие: {arrive}
-📌 Статус: {status}
+👤 Mijoz: {client_name}
+🏭 Fabrika: {factory}
+📦 Mahsulot: {product}
+🚋 Kontayner №: {container}
+🚦 Platforma: {platform}
+🧭 Yo‘nalish: {direction}
+📤 Jo‘natilgan sana: {dispatch_date}
+🌐 Chegara: {border_date}
+📍 Yetib kelish: {arrive}
+📌 Holat: {status}
 
-С уважением, Delta Union Logistics
+Hurmat bilan, Delta Union Logistics
 https://t.me/deltaunionlogistics"""
             return msg
 
-    return "❗ Контейнер не найден."
+    return "❗ Kontayner topilmadi."
 
 
 description_text = """

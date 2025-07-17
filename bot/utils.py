@@ -6,11 +6,14 @@ import gspread
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 
+# bot admins for ads
+ADMINS = [1998050207]
+
 load_dotenv()
 
 # Google Sheets connection
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+creds = ServiceAccountCredentials.from_json_keyfile_name(os.getenv("GOOGLE_CREDENTIALS_PATH"), scope)
 client = gspread.authorize(creds)
 
 # Sheets URL
@@ -79,3 +82,13 @@ https://t.me/deltaunionlogistics"""
             return msg
 
     return "❗ Контейнер не найден."
+
+
+description_text = """
+📦 Yuk qidiruv boti
+
+🔸 Bizning botimizga xush kelibsiz! Bu bot yuklarni topish va boshqarishda yordam beradi.
+
+✅ Kommandalar:
+- /start(restart) - 🔄 Botni qayta ishga tushiradi.
+- /help - ❓ Botni ishlashi haqida yordam olishingiz mumkin."""

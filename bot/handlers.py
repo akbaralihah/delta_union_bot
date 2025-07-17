@@ -1,24 +1,26 @@
 from aiogram import html, F
-from aiogram.filters import CommandStart, Command
+from aiogram.exceptions import TelegramBadRequest
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, BotCommand
 
 from bot.buttons.reply import main_menu_buttons, admin_menu_buttons
-from bot.dispatcher import dp
+from bot.dispatcher import dp, bot
 from bot.states import UserStates
 from bot.utils import track, ADMINS
+from db.configs import session
+from db.models import User
 
 
 @dp.message(Command(commands=["start", "restart"]))
 async def command_start_handler(msg: Message) -> None:
-    start_command = BotCommand(command="start", description="Start the bot")
-    restart_command = BotCommand(command="restart", description="Restart the bot")
-    help_command = BotCommand(command="help", description="Help")
-
-    await msg.bot.set_my_commands(commands=[start_command, restart_command, help_command])
-
     answer_text = f"Assalomu alaykum😊, {html.bold(msg.from_user.full_name)}!"
-
+    User.upsert(
+        session=session,
+        user_id=msg.from_user.id,
+        full_name=msg.from_user.full_name,
+        username=msg.from_user.username
+    )
     if msg.from_user.id in ADMINS:
         await msg.answer(answer_text, reply_markup=admin_menu_buttons())
     else:
@@ -52,5 +54,41 @@ async def help_command_handler(msg: Message) -> None:
 
 
 @dp.message(F.text == "📢 Reklama")
-async def advert_command_handler(msg: Message, state: FSMContext) -> None:
-    pass
+async def advert_command_handler(msg: Message, state: FSMContext) -> Message | None:
+    if msg.from_user.id not in ADMINS:
+        return await msg.answer(text="❌ Sizda bu amalni bajarishga ruxsat yo'q.")
+
+    await msg.answer(text="📨 Reklama matnini yuboring (matn, rasm, video yoki gif bo‘lishi mumkin):")
+    await state.set_state(UserStates.advert)
+    return None
+
+
+@dp.message(UserStates.advert)
+async def send_advert_to_all(msg: Message, state: FSMContext):
+    user_ids = User.get_all_user_ids(session)
+    success = 0
+    failed = 0
+
+    for uid in user_ids:
+        try:
+            if msg.text:
+                await bot.send_message(uid, msg.text)
+            elif msg.photo:
+                await bot.send_photo(uid, msg.photo[-1].file_id, caption=msg.caption)
+            elif msg.video:
+                await bot.send_video(uid, msg.video.file_id, caption=msg.caption)
+            elif msg.animation:
+                await bot.send_animation(uid, msg.animation.file_id, caption=msg.caption)
+            else:
+                continue
+            success += 1
+        except TelegramBadRequest:
+            failed += 1
+            continue
+        except Exception as e:
+            print(f"Xatolik: {e}")
+            failed += 1
+            continue
+
+    await msg.answer(f"✅ Reklama yuborildi.\n📨 Yuborilganlar: {success}\n❌ Xatolik: {failed}")
+    await state.clear()

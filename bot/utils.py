@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 
 # bot admins for ads
-ADMINS = [1998050207]
+ADMINS = [1998050207, 5459394614, 5797855429]
 
 load_dotenv()
 

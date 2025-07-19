@@ -4,7 +4,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from bot.buttons.reply import main_menu_buttons, admin_menu_buttons
+from bot.reply import main_menu_buttons, admin_menu_buttons
 from bot.dispatcher import dp, bot
 from bot.states import UserStates
 from bot.utils import track, ADMINS

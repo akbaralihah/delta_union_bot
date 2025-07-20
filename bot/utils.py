@@ -1,4 +1,3 @@
-# utils.py
 import os
 import random
 import re
@@ -12,24 +11,25 @@ ADMINS = [1998050207, 5459394614, 5797855429]
 
 load_dotenv()
 
-# Google Sheets API ga ulanish
-
 try:
+    # Google Sheets API ga ulanish
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     creds = ServiceAccountCredentials.from_json_keyfile_name(os.getenv("GOOGLE_CREDENTIALS_PATH"), scope)
     client = gspread.authorize(creds)
 
-    sheet_url = os.getenv("SPREAD_SHEET_URL")
+    CONTAINER_SHEET_URL = os.getenv("CONTAINER_SHEET_URL")
+    CARGO_SHEET_URL = os.getenv("CARGO_SHEET_URL")
 
-    sheet = client.open_by_url(sheet_url).sheet1
+    CONTAINER_SHEET = client.open_by_url(CONTAINER_SHEET_URL).sheet1
+    CARGO_SHEET = client.open_by_url(CARGO_SHEET_URL).sheet1
 except Exception as e:
     print(f"Google Sheets ga ulanishda xatolik yuz berdi: {e}")
-    # Xato sodir bo'lsa, ilovani to'xtatish yoki xato haqida xabar berish mumkin.
-    # production muhitda bu qismni yaxshiroq handle qilish kerak.
-    sheet = None  # Sheet ulanmagan holatda None bo'ladi
+    sheet = None
 
 
 def track(container_input: str) -> str:
+    sheet = CONTAINER_SHEET
+
     if sheet is None:
         return "Xatolik: Google Sheets ga ulanish imkonsiz."
 
@@ -44,8 +44,6 @@ def track(container_input: str) -> str:
     ]
 
     try:
-        # get_all_records() sarlavhalar birinchi qatorda bo'lishini kutadi.
-        # Agar FCL jadvalida sarlavhalar boshqa qatorda bo'lsa, bu yerda ham xatolik bo'lishi mumkin.
         rows = sheet.get_all_records(expected_headers=expected_headers_for_track)
     except gspread.exceptions.GSpreadException as e:
         return f"Xatolik: Ma'lumotlarni yuklashda muammo yuz berdi: {e}"
@@ -60,14 +58,13 @@ def track(container_input: str) -> str:
             factory = row.get("Factory", "Noma'lum")
             container = row.get("Container №", "Noma'lum")
             status = row.get("Status", "Noma'lum")
-            platform = row.get("ChN Platform", "—")  # "CN Platform" emas, "ChN Platform" bo'lishi kerak.
+            platform = row.get("ChN Platform", "—")
             product = row.get("Product name", "—")
             direction = row.get("Direction", "—")
             dispatch_date = row.get("Dispatch", "—")
             border_date = row.get("Border", "—")
             arrive = row.get("Arrive", "—")
 
-            # Statusdagi km ni random bilan yangilash
             match = re.search(r'(\d+)\s*км', status)
             if match:
                 original_km = int(match.group(1))
@@ -96,12 +93,13 @@ https://t.me/deltaunionlogistics"""
 
 
 def search_by_shipping_mark(query: str) -> str:
+    sheet = CARGO_SHEET
+
     if sheet is None:
         return "Xatolik: Google Sheets ga ulanish imkonsiz."
 
     try:
         headers = sheet.row_values(2)
-
         all_data = sheet.get_all_values()
 
         data = []
@@ -121,12 +119,34 @@ def search_by_shipping_mark(query: str) -> str:
     if not data:
         return "❗Jadval bo‘sh."
 
+    emoji_map = {
+        "Shipping mark": "📌",
+        "Agent": "👤",
+        "Name": "🧑‍🤝‍🧑",
+        "Product Name": "📦",
+        "Package": "📦",
+        "Total cbm": "📏",
+        "GW": "⚖️",
+        "LCL/LTL": "🚚",
+        "Warehouse": "📦",
+        "Date of arrive at wh": "🗓️",
+        "Loading to truck/cntr date": "🚛",
+        "Status": "📍",
+        "Arrive at Horgos or Kashgar": "🏁",
+        "Date of arrive at destination": "🗓️",
+        "Destination": "🌍"
+    }
+
     for row in data:
         if str(row.get("Shipping mark", "")).strip().lower() == query.strip().lower():
             result_lines = []
             for key, value in row.items():
                 if key:
-                    result_lines.append(f"📌 {key}: {value}")
-            return "\n".join(result_lines)
+                    emoji = emoji_map.get(key, "❓")
+                    result_lines.append(f"{emoji} {key}: {value}")
+
+            return "\n".join(result_lines[1:]) + """\n
+Hurmat bilan, Delta Union Logistics
+https://t.me/deltaunionlogistics"""
 
     return "🔍 Hech qanday mos Shipping Mark topilmadi."

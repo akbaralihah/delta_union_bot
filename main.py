@@ -6,7 +6,7 @@ from aiogram.types import BotCommand
 
 from bot.dispatcher import bot
 from bot.handlers import dp
-from bot.utils import description_text
+from bot.texts import description_text
 
 
 async def main() -> None:

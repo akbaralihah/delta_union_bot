@@ -74,7 +74,7 @@ def track(container_input: str) -> str:
 
             msg = f"""Hurmatli mijoz, assalomu alaykum!
 
-👤 Mijoz: {client_name}
+👤 Mijoz: {client_name} aka
 🏭 Fabrika: {factory}
 📦 Mahsulot: {product}
 🚋 Kontayner №: {container}
@@ -143,7 +143,10 @@ def search_by_shipping_mark(query: str) -> str:
             for key, value in row.items():
                 if key:
                     emoji = emoji_map.get(key, "❓")
-                    result_lines.append(f"{emoji} {key}: {value}")
+                    if key == "Name":
+                        result_lines.append(f"{emoji} {key}: {value} aka")
+                    else:
+                        result_lines.append(f"{emoji} {key}: {value}")
 
             return "\n".join(result_lines[1:]) + """\n
 Hurmat bilan, Delta Union Logistics

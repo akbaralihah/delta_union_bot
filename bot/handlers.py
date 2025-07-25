@@ -2,10 +2,15 @@ from aiogram import html, F
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 
 from bot.dispatcher import dp, bot
-from bot.reply import main_menu_buttons, admin_menu_buttons, choice_search_menu_buttons
+from bot.reply import (
+    main_menu_buttons,
+    admin_menu_buttons,
+    choice_search_menu_buttons,
+    confirm_keyboard
+)
 from bot.states import UserStates
 from bot.utils import track, ADMINS, search_by_shipping_mark
 from db.configs import session
@@ -86,7 +91,37 @@ async def advert_command_handler(msg: Message, state: FSMContext) -> Message | N
 
 
 @dp.message(UserStates.advert)
-async def send_advert_to_all(msg: Message, state: FSMContext):
+async def preview_advert_handler(msg: Message, state: FSMContext) -> None:
+    await state.update_data(advert_msg=msg)
+
+    if msg.text:
+        await msg.answer(text=msg.text, reply_markup=confirm_keyboard())
+    elif msg.photo:
+        await msg.answer_photo(photo=msg.photo[-1].file_id, caption=msg.caption or "", reply_markup=confirm_keyboard())
+    elif msg.video:
+        await msg.answer_video(video=msg.video.file_id, caption=msg.caption or "", reply_markup=confirm_keyboard())
+    elif msg.animation:
+        await msg.answer_animation(animation=msg.animation.file_id, caption=msg.caption or "", reply_markup=confirm_keyboard())
+    else:
+        await msg.answer("❌ Noma'lum kontent turi. Faqat matn, rasm, video yoki gif yuboring.")
+        return
+
+
+@dp.callback_query(F.data.in_(["confirm_send", "cancel_send"]))
+async def send_advert_to_all(callback: CallbackQuery, state: FSMContext) -> None:
+    try:
+        await callback.message.delete()
+    except TelegramBadRequest:
+        pass
+
+    data = await state.get_data()
+    msg: Message = data.get("advert_msg")
+
+    if callback.data == "cancel_send":
+        await callback.message.edit_text("❌ Reklama yuborilishi bekor qilindi.")
+        await state.clear()
+        return
+
     user_ids = User.get_all_user_ids(session)
     success = 0
     failed = 0
@@ -96,11 +131,11 @@ async def send_advert_to_all(msg: Message, state: FSMContext):
             if msg.text:
                 await bot.send_message(uid, msg.text)
             elif msg.photo:
-                await bot.send_photo(uid, msg.photo[-1].file_id, caption=msg.caption)
+                await bot.send_photo(uid, msg.photo[-1].file_id, caption=msg.caption or "")
             elif msg.video:
-                await bot.send_video(uid, msg.video.file_id, caption=msg.caption)
+                await bot.send_video(uid, msg.video.file_id, caption=msg.caption or "")
             elif msg.animation:
-                await bot.send_animation(uid, msg.animation.file_id, caption=msg.caption)
+                await bot.send_animation(uid, msg.animation.file_id, caption=msg.caption or "")
             else:
                 continue
             success += 1

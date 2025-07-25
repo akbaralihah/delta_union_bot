@@ -1,4 +1,4 @@
-run:
+start:
 	docker start postgres_db
 
 drop:
@@ -11,3 +11,5 @@ refresh:
 	make drop
 	make create
 
+run:
+	python3 main.py

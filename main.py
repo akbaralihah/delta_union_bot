@@ -1,4 +1,5 @@
 import asyncio
+import colorlog
 import logging
 import sys
 
@@ -7,6 +8,33 @@ from aiogram.types import BotCommand
 from bot.dispatcher import bot
 from bot.handlers import dp
 from bot.texts import description_text
+
+log_format = (
+    "%(asctime)s - %(levelname)s - %(message)s"
+)
+date_format = "%Y-%m-%d %H:%M:%S"
+
+handler = colorlog.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter(
+    log_format,
+    datefmt=date_format,
+    log_colors={
+        "DEBUG": "cyan",
+        "INFO": "green",
+        "WARNING": "yellow",
+        "ERROR": "red",
+        "CRITICAL": "bold_red",
+    }
+))
+
+# logger configuration
+logger = colorlog.getLogger()
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
+logger.info("Start polling")
+logger.warning("Bu ogohlantirish")
+logger.error("Bu xato")
 
 
 async def main() -> None:

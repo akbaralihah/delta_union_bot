@@ -11,6 +11,7 @@ ADMINS = [1998050207, 5459394614, 5797855429]
 
 load_dotenv()
 
+
 # Google Sheets API ulanishi
 def get_sheet_by_url(url_env_name: str):
     try:
@@ -24,7 +25,8 @@ def get_sheet_by_url(url_env_name: str):
 
 
 CONTAINER_SHEET = get_sheet_by_url("CONTAINER_SHEET_URL")
-CARGO_SHEET = get_sheet_by_url("CARGO_SHEET_URL")
+CARGO_1_SHEET = get_sheet_by_url("CARGO_1_SHEET_URL")
+CARGO_2_SHEET = get_sheet_by_url("CARGO_2_SHEET_URL")
 
 
 def track(container_input: str) -> str:
@@ -76,12 +78,12 @@ https://t.me/deltaunionlogistics"""
 
 
 def search_by_shipping_mark(query: str) -> str:
-    if CARGO_SHEET is None:
+    if CARGO_1_SHEET is None:
         return "Xatolik: Google Sheets ga ulanish imkonsiz."
 
     try:
-        headers = CARGO_SHEET.row_values(2)
-        all_data = CARGO_SHEET.get_all_values()
+        headers = CARGO_1_SHEET.row_values(2)
+        all_data = CARGO_1_SHEET.get_all_values()
     except gspread.exceptions.GSpreadException as e:
         return f"Xatolik: Ma'lumotlarni olishda muammo: {e}"
 
@@ -131,3 +133,43 @@ Hurmat bilan, Delta Union Logistics
 https://t.me/deltaunionlogistics"""
 
     return "🔍 Hech qanday mos Shipping Mark topilmadi."
+
+
+def search_by_id_in_cargo_2(cargo_id: str) -> str:
+    if CARGO_2_SHEET is None:
+        return "Xatolik: Google Sheets ga ulanish imkonsiz."
+
+    try:
+        headers = CARGO_2_SHEET.row_values(2)
+        all_data = CARGO_2_SHEET.get_all_values()
+    except gspread.exceptions.GSpreadException as e:
+        return f"Xatolik: Ma'lumotlarni olishda muammo: {e}"
+
+    if len(all_data) <= 2:
+        return "❗Jadval bo‘sh."
+
+    data = []
+    for row in all_data[2:]:
+        data.append({headers[i]: row[i] if i < len(row) else "" for i in range(len(headers))})
+
+    cargo_id = cargo_id.strip()
+    print(data)
+
+    for row in data:
+        if row.get("ID", "").strip() == cargo_id:
+            client_name = row.get("Client Name", "—")
+            phone = row.get("Telefon Nomer", "—")
+            product = row.get("Product Name", "—")
+            status = row.get("Status", "—")
+
+            return f"""📦 Yuk ma'lumotlari:
+
+👤 Mijoz: {client_name}
+📞 Telefon: {phone}
+🛒 Mahsulot: {product}
+📌 Holat: {status}
+
+Hurmat bilan, Delta Union Logistics
+https://t.me/deltaunionlogistics"""
+
+    return "❗ ID bo‘yicha hech qanday mos yuk topilmadi."

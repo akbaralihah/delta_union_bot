@@ -12,7 +12,7 @@ from bot.reply import (
     confirm_keyboard
 )
 from bot.states import UserStates
-from bot.utils import track, ADMINS, search_by_shipping_mark
+from bot.utils import track, ADMINS, search_by_shipping_mark, search_by_id_in_cargo_2
 from db.configs import session
 from db.models import User
 
@@ -44,7 +44,9 @@ async def search_choice_cmd_handler(msg: Message, state: FSMContext) -> None:
     if msg.text == "📦 Shaxsiy konteyner":
         await state.set_state(UserStates.full_container)
     elif msg.text == "🧩 Yig'ma konteyner":
-        await state.set_state(UserStates.groupage_cargo)
+        await state.set_state(UserStates.groupage_cargo_1)
+    elif msg.text == "🚚 Cargo tracking":
+        await state.set_state(UserStates.groupage_cargo_2)
 
 
 @dp.message(UserStates.full_container)
@@ -57,9 +59,19 @@ async def container_number_handler(msg: Message, state: FSMContext) -> None:
         await msg.reply(container_info, reply_markup=main_menu_buttons())
 
 
-@dp.message(UserStates.groupage_cargo)
+@dp.message(UserStates.groupage_cargo_1)
 async def cargo_number_handler(msg: Message, state: FSMContext) -> None:
     cargo_info = search_by_shipping_mark(msg.text)
+    await state.clear()
+    if msg.from_user.id in ADMINS:
+        await msg.reply(text=cargo_info, reply_markup=admin_menu_buttons())
+    else:
+        await msg.reply(text=cargo_info, reply_markup=main_menu_buttons())
+
+
+@dp.message(UserStates.groupage_cargo_2)
+async def cargo_id_handler(msg: Message, state: FSMContext) -> None:
+    cargo_info = search_by_id_in_cargo_2(msg.text)
     await state.clear()
     if msg.from_user.id in ADMINS:
         await msg.reply(text=cargo_info, reply_markup=admin_menu_buttons())
@@ -101,7 +113,8 @@ async def preview_advert_handler(msg: Message, state: FSMContext) -> None:
     elif msg.video:
         await msg.answer_video(video=msg.video.file_id, caption=msg.caption or "", reply_markup=confirm_keyboard())
     elif msg.animation:
-        await msg.answer_animation(animation=msg.animation.file_id, caption=msg.caption or "", reply_markup=confirm_keyboard())
+        await msg.answer_animation(animation=msg.animation.file_id, caption=msg.caption or "",
+                                   reply_markup=confirm_keyboard())
     else:
         await msg.answer("❌ Noma'lum kontent turi. Faqat matn, rasm, video yoki gif yuboring.")
         return

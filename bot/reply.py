@@ -19,9 +19,11 @@ def main_menu_buttons():
 def choice_search_menu_buttons():
     btn1 = KeyboardButton(text="📦 Shaxsiy konteyner")
     btn2 = KeyboardButton(text="🧩 Yig'ma konteyner")
+    btn3 = KeyboardButton(text="🚚 Cargo tracking")
     design = [
         [btn1],
-        [btn2]
+        [btn2],
+        [btn3],
     ]
     return ReplyKeyboardMarkup(keyboard=design, resize_keyboard=True, one_time_keyboard=True)
 

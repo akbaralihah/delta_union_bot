@@ -5,43 +5,66 @@ from aiogram.types import (
     InlineKeyboardMarkup
 )
 
-
-def main_menu_buttons():
-    btn1 = KeyboardButton(text="🔎 Yukni qidirish")
-    btn2 = KeyboardButton(text="👤 Admin")
-    design = [
-        [btn1],
-        [btn2]
-    ]
-    return ReplyKeyboardMarkup(keyboard=design, resize_keyboard=True, one_time_keyboard=True)
+from bot.translations import t
 
 
-def choice_search_menu_buttons():
-    btn1 = KeyboardButton(text="📦 Shaxsiy konteyner")
-    btn2 = KeyboardButton(text="🧩 Yig'ma konteyner")
-    btn3 = KeyboardButton(text="🚚 Cargo tracking")
-    design = [
-        [btn1],
-        [btn2],
-        [btn3],
-    ]
-    return ReplyKeyboardMarkup(keyboard=design, resize_keyboard=True, one_time_keyboard=True)
+def language_keyboard():
+    btn1 = InlineKeyboardButton(text="🇺🇿 O‘zbekcha", callback_data="set_lang_UZ")
+    btn2 = InlineKeyboardButton(text="🇷🇺 Русский", callback_data="set_lang_RU")
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [btn1],
+            [btn2]
+        ]
+    )
 
 
-def admin_menu_buttons():
-    btn1 = KeyboardButton(text="🔎 Yukni qidirish")
-    btn2 = KeyboardButton(text="📢 Reklama")
-    design = [
-        [btn1],
-        [btn2]
-    ]
-    return ReplyKeyboardMarkup(keyboard=design, resize_keyboard=True, one_time_keyboard=True)
+def main_menu_buttons(lang="UZ"):
+    btn1 = KeyboardButton(text=t(lang, "search_cargo"))
+    btn2 = KeyboardButton(text=t(lang, "admin"))
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [btn1],
+            [btn2]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
 
 
-def confirm_keyboard():
-    btn1 = InlineKeyboardButton(text="✅ Ha", callback_data="confirm_send")
-    btn2 = InlineKeyboardButton(text="❌ Yo'q", callback_data="cancel_send")
-    design = [
-        [btn1, btn2]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=design)
+def choice_search_menu_buttons(lang="UZ"):
+    btn1 = KeyboardButton(text=t(lang, "full_container"))
+    btn2 = KeyboardButton(text=t(lang, "groupage_cargo"))
+    btn3 = KeyboardButton(text=t(lang, "cargo_tracking"))
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [btn1],
+            [btn2],
+            [btn3],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+
+def admin_menu_buttons(lang="UZ"):
+    btn1 = KeyboardButton(text=t(lang, "search_container"))
+    btn2 = KeyboardButton(text=t(lang, "advert"))
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [btn1],
+            [btn2]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+
+def confirm_keyboard(lang="UZ"):
+    btn1 = InlineKeyboardButton(text=t(lang, "yes"), callback_data="confirm_send")
+    btn2 = InlineKeyboardButton(text=t(lang, "no"), callback_data="cancel_send")
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [btn1, btn2]
+        ]
+    )

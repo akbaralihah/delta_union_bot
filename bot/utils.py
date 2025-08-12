@@ -153,7 +153,6 @@ def search_by_id_in_cargo_2(cargo_id: str) -> str:
         data.append({headers[i]: row[i] if i < len(row) else "" for i in range(len(headers))})
 
     cargo_id = cargo_id.strip()
-    print(data)
 
     for row in data:
         if row.get("ID", "").strip() == cargo_id:

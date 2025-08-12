@@ -1,56 +1,54 @@
 LANG = {
     "UZ": {
-        "greeting": "😊 Assalomu alaykum",
+        "greeting": "😊 Assalomu alaykum, {name}!",
+        "change_language": "🌐 Tilni o‘zgartirish",
+        "choose_language": "🌍 Iltimos, tilni tanlang:",
         "start_command": "🔄 Botni ishga tushirish",
         "restart_command": "♻️ Botni qayta ishga tushirish",
         "help_command": "❓ Yordam",
-        "search_menu": {
-            "search_btn": "🔎 Yukni qidirish",
-            "full_container": "📦 To'liq konteyner/Fura",
-            "groupage": "🧩 Yig'ma yuklar",
-            "cargo_tracking": "🚚 Cargo tracking",
-            "choose_section": "Qidiruv uchun bo'limni tanlang👇"
-        },
-        "admin_menu": {
-            "search_btn": "🔎 Konteyner/Fura qidirish",
-            "advert": "📢 Reklama"
-        },
-        "advert": {
-            "no_permission": "❌ Sizda bu amalni bajarishga ruxsat yo'q.",
-            "send_text": "📨 Reklama matnini yuboring (matn, rasm, video yoki gif bo‘lishi mumkin):",
-            "unknown_type": "❌ Noma'lum kontent turi. Faqat matn, rasm, video yoki gif yuboring.",
-            "cancelled": "❌ Reklama yuborilishi bekor qilindi.",
-            "sent": "✅ Reklama yuborildi.\n📨 Qabul qilinganlar: {success}\n❌ Xatoliklar: {failed}"
-        }
+        "main_menu": "📋 Asosiy menyu",
+        "search_cargo": "🔍 Yukni qidirish",
+        "choose_search": "📌 Qidiruv turini tanlang:",
+        "full_container": "📦 To‘liq konteyner / Fura",
+        "groupage_cargo": "🧩 Yig‘ma yuk",
+        "cargo_tracking": "🚚 Yukni kuzatish",
+        "enter_cargo_number": "✏️ Yuk raqamini kiriting:",
+        "admin": "⚙️ Admin",
+        "advert": "📢 Reklama",
+        "no_permission": "❌ Sizda bu amalni bajarishga ruxsat yo‘q.",
+        "send_advert": "📨 Reklama matnini yuboring (matn, rasm, video yoki gif bo‘lishi mumkin):",
+        "unknown_content": "❌ Noma’lum kontent turi. Faqat matn, rasm, video yoki gif yuboring.",
+        "advert_cancelled": "❌ Reklama yuborilishi bekor qilindi.",
+        "advert_sent": "✅ Reklama yuborildi.\n📨 Qabul qilinganlar: {success}\n❌ Xatoliklar: {failed}",
+        "lang_updated": "✅ Til saqlandi."
     },
     "RU": {
-        "greeting": "😊 Здравствуйте",
+        "greeting": "😊 Здравствуйте, {name}!",
+        "change_language": "🌐 Изменить язык",
+        "choose_language": "🌍 Пожалуйста, выберите язык:",
         "start_command": "🔄 Запустить бота",
         "restart_command": "♻️ Перезапустить бота",
         "help_command": "❓ Помощь",
-        "search_menu": {
-            "search_btn": "🔎 Поиск груза",
-            "full_container": "📦 Полный контейнер/фура",
-            "groupage": "🧩 Сборные грузы",
-            "cargo_tracking": "🚚 Отслеживание груза",
-            "choose_section": "Выберите раздел для поиска👇"
-        },
-        "admin_menu": {
-            "search_btn": "🔎 Поиск контейнера/фуры",
-            "advert": "📢 Реклама"
-        },
-        "advert": {
-            "no_permission": "❌ У вас нет прав на это действие.",
-            "send_text": "📨 Отправьте текст рекламы (может быть текст, фото, видео или gif):",
-            "unknown_type": "❌ Неизвестный тип контента. Отправьте только текст, фото, видео или gif.",
-            "cancelled": "❌ Отправка рекламы отменена.",
-            "sent": "✅ Реклама отправлена.\n📨 Доставлено: {success}\n❌ Ошибки: {failed}"
-        }
+        "main_menu": "📋 Главное меню",
+        "search_cargo": "🔍 Поиск груза",
+        "choose_search": "📌 Выберите тип поиска:",
+        "full_container": "📦 Полный контейнер / Фура",
+        "groupage_cargo": "🧩 Сборный груз",
+        "cargo_tracking": "🚚 Отслеживание груза",
+        "enter_cargo_number": "✏️ Введите номер груза:",
+        "admin": "⚙️ Админ",
+        "advert": "📢 Реклама",
+        "no_permission": "❌ У вас нет прав на это действие.",
+        "send_advert": "📨 Отправьте текст рекламы (может быть текст, фото, видео или gif):",
+        "unknown_content": "❌ Неизвестный тип контента. Отправьте только текст, фото, видео или gif.",
+        "advert_cancelled": "❌ Отправка рекламы отменена.",
+        "advert_sent": "✅ Реклама отправлена.\n📨 Доставлено: {success}\n❌ Ошибки: {failed}",
+        "lang_updated": "✅ Язык успешно сохранен."
     }
 }
 
 
-def t(lang: str, key_path: str, **kwargs) -> str:
+def translate(lang: str, key_path: str, **kwargs) -> str:
     keys = key_path.split(".")
     text = LANG[lang]
     for k in keys:
@@ -58,11 +56,23 @@ def t(lang: str, key_path: str, **kwargs) -> str:
     return text.format(**kwargs)
 
 
-description_text = """
-📦 Yuk qidiruv boti
+description_text = {
+    "UZ": """
+📦 *Yuk qidiruv boti*
 
-🔸 Bizning botimizga xush kelibsiz! Bu bot yuklarni topish va boshqarishda yordam beradi.
+🔸 Bizning botimizga xush kelibsiz! Bu bot sizga yuklarni topish va boshqarishda yordam beradi.
 
-✅ Kommandalar:
-- /start(restart) - 🔄 Botni qayta ishga tushiradi.
-- /help - ❓ Botni ishlashi haqida yordam olishingiz mumkin."""
+✅ *Komandalar:*
+- `/start` yoki `/restart` — 🔄 Botni ishga tushirish yoki qayta ishga tushirish
+- `/help` — ❓ Yordam olish
+""",
+    "RU": """
+📦 *Бот поиска грузов*
+
+🔸 Добро пожаловать в наш бот! Он поможет вам находить и отслеживать грузы.
+
+✅ *Команды:*
+- `/start` или `/restart` — 🔄 Запустить или перезапустить бота
+- `/help` — ❓ Получить помощь
+"""
+}

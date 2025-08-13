@@ -1,4 +1,4 @@
-from sqlalchemy import BIGINT, select, String, Column
+from sqlalchemy import BIGINT, String
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Mapped, mapped_column, Session
 
@@ -15,6 +15,10 @@ class User(Base):
 
     def __repr__(self):
         return f"<User id={self.id} tg={self.user_id} lang={self.lang}>"
+
+    @classmethod
+    def get_by_user_id(cls, user_id: int, session: Session):
+        return session.query(cls).filter(cls.user_id == user_id).first()
 
     @classmethod
     def get_user_lang(cls, user_id: int, session: Session):

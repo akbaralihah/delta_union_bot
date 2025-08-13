@@ -2,7 +2,7 @@ from aiogram import html, F
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
+from aiogram.types import Message, CallbackQuery
 
 from bot.dispatcher import dp, bot
 from bot.reply import (
@@ -11,8 +11,8 @@ from bot.reply import (
     choice_search_menu_buttons,
     confirm_keyboard, language_keyboard
 )
-from bot.translations import translate
 from bot.states import UserStates
+from bot.translations import translate
 from bot.utils import track, ADMINS, search_by_shipping_mark, search_by_id_in_cargo_2
 from db.configs import session
 from db.models import User
@@ -20,25 +20,35 @@ from db.models import User
 
 @dp.message(Command(commands=["start", "restart"]))
 async def command_start_handler(msg: Message) -> None:
-    lang = User.get_user_lang(msg.from_user.id, session=session)
+    user = User.get_by_user_id(msg.from_user.id, session=session)
 
+    if not user:
+        User.upsert(
+            session=session,
+            user_id=msg.from_user.id,
+            full_name=msg.from_user.full_name,
+            username=msg.from_user.username
+        )
+        await msg.answer(
+            translate("UZ", "choose_language"),
+            reply_markup=language_keyboard("UZ")
+        )
+        return
+
+    if not user.lang:
+        await msg.answer(
+            translate("UZ", "choose_language"),
+            reply_markup=language_keyboard("UZ")
+        )
+        return
+
+    lang = user.lang
     answer_text = translate(lang, "greeting", name=html.bold(msg.from_user.full_name))
-    User.upsert(
-        session=session,
-        user_id=msg.from_user.id,
-        full_name=msg.from_user.full_name,
-        username=msg.from_user.username
-    )
 
     if msg.from_user.id in ADMINS:
-        await msg.answer(answer_text, reply_markup=ReplyKeyboardRemove())
+        await msg.answer(answer_text, reply_markup=admin_menu_buttons(lang))
     else:
-        await msg.answer(answer_text, reply_markup=ReplyKeyboardRemove())
-
-    await msg.answer(
-        translate(lang, "choose_language"),
-        reply_markup=language_keyboard(lang)
-    )
+        await msg.answer(answer_text, reply_markup=main_menu_buttons(lang))
 
 
 @dp.message(F.text == translate("UZ", "change_language"))
@@ -55,11 +65,25 @@ async def change_language(msg: Message):
 async def set_language(call: CallbackQuery):
     lang = call.data.split("_")[-1]
     User.update_user_lang(call.from_user.id, lang, session=session)
+
     await call.message.edit_text(translate(lang, "lang_updated"))
+
+    # await call.message.answer(
+    #     translate(lang, "main_menu"),
+    #     reply_markup=admin_menu_buttons(lang)
+    # )
+
     if call.from_user.id in ADMINS:
-        await call.message.answer(translate(lang, "main_menu"), reply_markup=admin_menu_buttons(lang))
+        await call.message.answer(
+            translate(lang, "main_menu"),
+            reply_markup=admin_menu_buttons(lang)
+        )
     else:
-        await call.message.answer(translate(lang, "main_menu"), reply_markup=main_menu_buttons(lang))
+        await call.message.answer(
+            translate(lang, "main_menu"),
+            reply_markup=main_menu_buttons(lang)
+        )
+
     await call.answer()
 
 
@@ -206,5 +230,7 @@ async def send_advert_to_all(callback: CallbackQuery, state: FSMContext) -> None
             failed += 1
             continue
 
-    await callback.message.answer(translate(lang, "advert_sent").format(success=success, failed=failed))
+    await callback.message.answer(
+        translate(lang, "advert_sent", success=success, failed=failed)
+    )
     await state.clear()

@@ -20,7 +20,9 @@ LANG = {
         "unknown_content": "❌ Noma’lum kontent turi. Faqat matn, rasm, video yoki gif yuboring.",
         "advert_cancelled": "❌ Reklama yuborilishi bekor qilindi.",
         "advert_sent": "✅ Reklama yuborildi.\n📨 Qabul qilinganlar: {success}\n❌ Xatoliklar: {failed}",
-        "lang_updated": "✅ Til saqlandi."
+        "lang_updated": "✅ Til saqlandi.",
+        "yes": "✅ Ha",
+        "no": "❌ Yo'q",
     },
     "RU": {
         "greeting": "😊 Здравствуйте, {name}!",
@@ -43,7 +45,9 @@ LANG = {
         "unknown_content": "❌ Неизвестный тип контента. Отправьте только текст, фото, видео или gif.",
         "advert_cancelled": "❌ Отправка рекламы отменена.",
         "advert_sent": "✅ Реклама отправлена.\n📨 Доставлено: {success}\n❌ Ошибки: {failed}",
-        "lang_updated": "✅ Язык успешно сохранен."
+        "lang_updated": "✅ Язык успешно сохранен.",
+        "yes": "✅ Да",
+        "no": "❌ Нет",
     }
 }
 

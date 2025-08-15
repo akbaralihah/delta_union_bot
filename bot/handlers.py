@@ -201,7 +201,7 @@ async def send_advert_to_all(callback: CallbackQuery, state: FSMContext) -> None
     msg: Message = data.get("advert_msg")
 
     if callback.data == "cancel_send":
-        await callback.message.edit_text(translate(lang, "advert_cancelled"))
+        await callback.message.answer(translate(lang, "advert_cancelled"))
         await state.clear()
         return
 

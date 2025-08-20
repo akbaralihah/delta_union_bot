@@ -8,7 +8,7 @@ LANG = {
         "help_command": "❓ Yordam",
         "main_menu": "📋 Asosiy menyu",
         "search_cargo": "🔍 Yukni qidirish",
-        "choose_search": "📌 Qidiruv turini tanlang:",
+        "choose_search": "🔍 Qidiruv turini tanlang:",
         "full_container": "📦 To‘liq konteyner / Fura",
         "groupage_cargo": "🧩 Yig‘ma yuk",
         "cargo_tracking": "🚚 Cargo yukini kuzatish",
@@ -23,6 +23,37 @@ LANG = {
         "lang_updated": "✅ Til saqlandi.",
         "yes": "✅ Ha",
         "no": "❌ Yo'q",
+        "message": {
+            "date": "🗓 Sana",
+            "header": "Hurmatli mijoz, assalomu alaykum!",
+            "footer": "Hurmat bilan, Delta Union Logistics\nhttps://t.me/deltaunionlogistics",
+            "full_container": {
+                "company_name": "🏢 Korxona nomi",
+                "product_name": "📦 Yuk nomi",
+                "container_id": "🚋 Konteyner raqami",
+                "platform_id": "🚦 Platforma raqami",
+                "status": "📌 Holati",
+            },
+            "groupage_cargo": {
+                "shipping_mark": "📌 Shipping mark",
+                "name": "👤 Ismi",
+                "product_name": "📦 Yuk nomi",
+                "package": "🎁 O‘ram",
+                "total_cbm": "📏 Umumiy hajm (cbm)",
+                "date_of_arrive": "🗓 Yetib kelgan sana",
+                "status": "📌 Holati",
+                "destination": "🌍 Manzil",
+            },
+            "cargo_tracking": {
+                "info": "📦 Yuk ma'lumotlari:",
+                "id": "🆔 Yuk ID:",
+                "client_name": "👤 Mijoz ismi:",
+                "phone_number": "📞 Telefon raqami:",
+                "product_name": "📦 Mahsulot nomi:",
+                "gross_weight": "⚖ Brutto vazn:",
+                "status": "📊 Holati:"
+            }
+        }
     },
     "RU": {
         "greeting": "😊 Здравствуйте, {name}!",
@@ -33,7 +64,7 @@ LANG = {
         "help_command": "❓ Помощь",
         "main_menu": "📋 Главное меню",
         "search_cargo": "🔍 Поиск груза",
-        "choose_search": "📌 Выберите тип поиска:",
+        "choose_search": "🔍 Выберите тип поиска:",
         "full_container": "📦 Полный контейнер / Фура",
         "groupage_cargo": "🧩 Сборный груз",
         "cargo_tracking": "🚚 Отслеживание карго груза",
@@ -48,6 +79,37 @@ LANG = {
         "lang_updated": "✅ Язык успешно сохранен.",
         "yes": "✅ Да",
         "no": "❌ Нет",
+        "message": {
+            "date": "🗓 Дата",
+            "header": "Уважаемый клиент, здравствуйте!",
+            "footer": "С уважением, Delta Union Logistics\nhttps://t.me/deltaunionlogistics",
+            "full_container": {
+                "company_name": "🏢 Название компании",
+                "product_name": "📦 Наименование груза",
+                "container_id": "🚋 Номер контейнера",
+                "platform_id": "🚦 Номер платформы",
+                "status": "📌 Статус"
+            },
+            "groupage_cargo": {
+                "shipping_mark": "📌 Shipping mark",
+                "name": "👤 Имя",
+                "product_name": "📦 Наименование груза",
+                "package": "🎁 Упаковка",
+                "total_cbm": "📏 Общий объем (cbm)",
+                "date_of_arrive": "🗓 Дата прибытия",
+                "status": "📌 Статус",
+                "destination": "🌍 Пункт назначения",
+            },
+            "cargo_tracking": {
+                "info": "📦 Информация о грузе:",
+                "id": "🆔 ID груза:",
+                "client_name": "👤 Имя клиента:",
+                "phone_number": "📞 Номер телефона:",
+                "product_name": "📦 Название товара:",
+                "gross_weight": "⚖ Вес брутто:",
+                "status": "📊 Статус:"
+            }
+        }
     }
 }
 

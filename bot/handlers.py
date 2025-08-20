@@ -1,4 +1,5 @@
 from aiogram import html, F
+from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -13,7 +14,7 @@ from bot.reply import (
 )
 from bot.states import UserStates
 from bot.translations import translate
-from bot.utils import track, ADMINS, search_by_shipping_mark, search_by_id_in_cargo_2
+from bot.utils import track, ADMINS, search_by_shipping_mark, search_cargo
 from db.configs import session
 from db.models import User
 
@@ -65,14 +66,7 @@ async def change_language(msg: Message):
 async def set_language(call: CallbackQuery):
     lang = call.data.split("_")[-1]
     User.update_user_lang(call.from_user.id, lang, session=session)
-
     await call.message.edit_text(translate(lang, "lang_updated"))
-
-    # await call.message.answer(
-    #     translate(lang, "main_menu"),
-    #     reply_markup=admin_menu_buttons(lang)
-    # )
-
     if call.from_user.id in ADMINS:
         await call.message.answer(
             translate(lang, "main_menu"),
@@ -112,45 +106,102 @@ async def search_choice_cmd_handler(msg: Message, state: FSMContext) -> None:
 
 @dp.message(UserStates.full_container)
 async def container_number_handler(msg: Message, state: FSMContext) -> None:
-    lang = User.get_user_lang(msg.from_user.id, session=session)
-    container_info = track(msg.text)
+    user = msg.from_user
+    lang = User.get_user_lang(user.id, session=session)
+    response: dict = track(msg.text, lang)
+    message_text = response.get("message")
     await state.clear()
+    if response["status"] != 200:
+        await msg.bot.send_message(
+            response["reception"],
+            text=f"⚠ *Error:* `{response['message']}`\n" \
+                 f"👤 *From:* [{user.full_name}](tg://user?id={user.id})",
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
     if msg.from_user.id in ADMINS:
-        await msg.reply(container_info, reply_markup=admin_menu_buttons(lang))
+        await msg.reply(
+            text=message_text,
+            reply_markup=admin_menu_buttons(lang),
+            parse_mode=ParseMode.MARKDOWN
+        )
     else:
-        await msg.reply(container_info, reply_markup=main_menu_buttons(lang))
+        await msg.reply(
+            text=message_text,
+            reply_markup=main_menu_buttons(lang),
+            parse_mode=ParseMode.MARKDOWN
+        )
 
 
 @dp.message(UserStates.groupage_cargo_1)
 async def cargo_number_handler(msg: Message, state: FSMContext) -> None:
-    lang = User.get_user_lang(msg.from_user.id, session=session)
-    cargo_info = search_by_shipping_mark(msg.text)
+    user = User.get_by_user_id(msg.from_user.id, session)
+    lang = User.get_user_lang(user.user_id, session)
+    response = search_by_shipping_mark(msg.text, lang)
+    message_text = response["message"]
     await state.clear()
+    if response["status"] != 200:
+        await msg.bot.send_message(
+            response["reception"],
+            text=f"⚠ *Error:* `{response['message']}`\n" \
+                 f"👤 *From:* [{user.full_name}](tg://user?id={user.id})",
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
     if msg.from_user.id in ADMINS:
-        await msg.reply(text=cargo_info, reply_markup=admin_menu_buttons(lang))
+        await msg.reply(
+            text=message_text,
+            reply_markup=admin_menu_buttons(lang),
+            parse_mode=ParseMode.MARKDOWN
+        )
     else:
-        await msg.reply(text=cargo_info, reply_markup=main_menu_buttons(lang))
+        await msg.reply(
+            text=message_text,
+            reply_markup=main_menu_buttons(lang),
+            parse_mode=ParseMode.MARKDOWN
+        )
 
 
 @dp.message(UserStates.groupage_cargo_2)
 async def cargo_id_handler(msg: Message, state: FSMContext) -> None:
-    lang = User.get_user_lang(msg.from_user.id, session=session)
-    cargo_info = search_by_id_in_cargo_2(msg.text)
+    user = User.get_by_user_id(msg.from_user.id, session)
+    lang = User.get_user_lang(user.id, session)
+    response = search_cargo(msg.text, lang)
+    message_text = response["message"]
     await state.clear()
+    if response["status"] != 200:
+        await msg.bot.send_message(
+            response["reception"],
+            text=f"⚠ *Error:* `{response['message']}`\n" \
+                 f"👤 *From:* [{user.full_name}](tg://user?id={user.id})",
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
     if msg.from_user.id in ADMINS:
-        await msg.reply(text=cargo_info, reply_markup=admin_menu_buttons(lang))
+        await msg.reply(
+            text=message_text,
+            reply_markup=admin_menu_buttons(lang),
+            parse_mode=ParseMode.MARKDOWN
+        )
     else:
-        await msg.reply(text=cargo_info, reply_markup=main_menu_buttons(lang))
+        await msg.reply(
+            text=message_text,
+            reply_markup=main_menu_buttons(lang),
+            parse_mode=ParseMode.MARKDOWN
+        )
 
 
 @dp.message(F.text == translate("UZ", "admin"))
 @dp.message(F.text == translate("RU", "admin"))
 async def admin_command_handler(msg: Message) -> None:
-    lang = User.get_user_lang(msg.from_user.id, session=session)
+    lang = User.get_user_lang(msg.from_user.id, session)
     answer_text = "https://t.me/Mr_bob0921"
     if msg.from_user.id in ADMINS:
-        await msg.answer(text=answer_text, reply_markup=admin_menu_buttons(lang))
-    await msg.answer(text=answer_text, reply_markup=main_menu_buttons(lang))
+        await msg.answer(
+            text=answer_text,
+            reply_markup=admin_menu_buttons(lang)
+        )
+    await msg.answer(
+        text=answer_text,
+        reply_markup=main_menu_buttons(lang)
+    )
 
 
 @dp.message(Command("help"))
@@ -161,29 +212,41 @@ async def help_command_handler(msg: Message) -> None:
 @dp.message(F.text == translate("UZ", "advert"))
 @dp.message(F.text == translate("RU", "advert"))
 async def advert_command_handler(msg: Message, state: FSMContext) -> Message | None:
-    lang = User.get_user_lang(msg.from_user.id, session=session)
+    lang = User.get_user_lang(msg.from_user.id, session)
     if msg.from_user.id not in ADMINS:
-        return await msg.answer(text=translate(lang, "no_permission"))
-    await msg.answer(text=translate(lang, "send_advert"))
+        return await msg.answer(translate(lang, "no_permission"))
+    await msg.answer(translate(lang, "send_advert"))
     await state.set_state(UserStates.advert)
     return None
 
 
 @dp.message(UserStates.advert)
 async def preview_advert_handler(msg: Message, state: FSMContext) -> None:
-    lang = User.get_user_lang(msg.from_user.id, session=session)
+    lang = User.get_user_lang(msg.from_user.id, session)
     await state.update_data(advert_msg=msg)
 
     if msg.text:
-        await msg.answer(text=msg.text, reply_markup=confirm_keyboard(lang))
+        await msg.answer(
+            text=msg.text,
+            reply_markup=confirm_keyboard(lang)
+        )
     elif msg.photo:
-        await msg.answer_photo(photo=msg.photo[-1].file_id, caption=msg.caption or "",
-                               reply_markup=confirm_keyboard(lang))
+        await msg.answer_photo(
+            photo=msg.photo[-1].file_id,
+            caption=msg.caption or "",
+            reply_markup=confirm_keyboard(lang))
     elif msg.video:
-        await msg.answer_video(video=msg.video.file_id, caption=msg.caption or "", reply_markup=confirm_keyboard(lang))
+        await msg.answer_video(
+            video=msg.video.file_id,
+            caption=msg.caption or "",
+            reply_markup=confirm_keyboard(lang)
+        )
     elif msg.animation:
-        await msg.answer_animation(animation=msg.animation.file_id, caption=msg.caption or "",
-                                   reply_markup=confirm_keyboard(lang))
+        await msg.answer_animation(
+            animation=msg.animation.file_id,
+            caption=msg.caption or "",
+            reply_markup=confirm_keyboard(lang)
+        )
     else:
         await msg.answer(translate(lang, "unknown_content"))
         return
@@ -191,7 +254,7 @@ async def preview_advert_handler(msg: Message, state: FSMContext) -> None:
 
 @dp.callback_query(F.data.in_(["confirm_send", "cancel_send"]))
 async def send_advert_to_all(callback: CallbackQuery, state: FSMContext) -> None:
-    lang = User.get_user_lang(callback.from_user.id, session=session)
+    lang = User.get_user_lang(callback.from_user.id, session)
     try:
         await callback.message.delete()
     except TelegramBadRequest:
@@ -226,7 +289,7 @@ async def send_advert_to_all(callback: CallbackQuery, state: FSMContext) -> None
             failed += 1
             continue
         except Exception as e:
-            print(f"Xatolik: {e}")
+            print(f"Error: {e}")
             failed += 1
             continue
 

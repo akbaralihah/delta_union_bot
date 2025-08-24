@@ -6,6 +6,8 @@ from sqlalchemy.orm import declarative_base, Session
 load_dotenv()
 Base = declarative_base()
 
+CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
+
 
 class Config:
     DB_USER = os.getenv("DB_USER")

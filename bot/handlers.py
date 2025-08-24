@@ -1,6 +1,8 @@
+import logging
+
 from aiogram import html, F
 from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
@@ -15,7 +17,7 @@ from bot.reply import (
 from bot.states import UserStates
 from bot.translations import translate
 from bot.utils import track, ADMINS, search_by_shipping_mark, search_cargo
-from db.configs import session
+from db.configs import session, CHANNEL_ID
 from db.models import User
 
 
@@ -204,11 +206,6 @@ async def admin_command_handler(msg: Message) -> None:
     )
 
 
-@dp.message(Command("help"))
-async def help_command_handler(msg: Message) -> None:
-    pass
-
-
 @dp.message(F.text == translate("UZ", "advert"))
 @dp.message(F.text == translate("RU", "advert"))
 async def advert_command_handler(msg: Message, state: FSMContext) -> Message | None:
@@ -297,3 +294,40 @@ async def send_advert_to_all(callback: CallbackQuery, state: FSMContext) -> None
         translate(lang, "advert_sent", success=success, failed=failed)
     )
     await state.clear()
+
+
+@dp.channel_post(F.chat.id == CHANNEL_ID)
+async def forward_channel_post(msg: Message):
+    user_ids = User.get_all_user_ids(session)
+    success, failed = 0, 0
+
+    for uid in user_ids:
+        try:
+            if msg.text:
+                await bot.send_message(uid, msg.text)
+            elif msg.photo:
+                await bot.send_photo(uid, msg.photo[-1].file_id, caption=msg.caption or "")
+            elif msg.video:
+                await bot.send_video(uid, msg.video.file_id, caption=msg.caption or "")
+            elif msg.document:
+                await bot.send_document(uid, msg.document.file_id, caption=msg.caption or "")
+            else:
+                continue
+            success += 1
+
+        except TelegramForbiddenError:
+            logging.warning(f"User {uid} blocked the bot.")
+            failed += 1
+            continue
+
+        except TelegramBadRequest:
+            logging.error(f"Bad request while sending message to {uid}")
+            failed += 1
+            continue
+
+        except Exception as e:
+            logging.error(f"Unexpected error while sending to {uid}: {e}")
+            failed += 1
+            continue
+
+    logging.info(f"Forwarded channel post. Success: {success}, Failed: {failed}")

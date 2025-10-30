@@ -1,22 +1,11 @@
 import os
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, Session
+from settings import env
 
-load_dotenv()
 Base = declarative_base()
 
-CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
+DB_CONFIG = f"postgresql+psycopg2://{env.DB_USER}:{env.DB_PASSWORD}@{env.DB_HOST}:{env.DB_PORT}/{env.DB_NAME}"
 
-
-class Config:
-    DB_USER = os.getenv("DB_USER")
-    DB_PASSWORD = os.getenv("DB_PASSWORD")
-    DB_NAME = os.getenv("DB_NAME")
-    DB_HOST = os.getenv("DB_HOST")
-    DB_PORT = os.getenv("DB_PORT")
-    DB_CONFIG = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
-
-engine = create_engine(Config().DB_CONFIG)
+engine = create_engine(DB_CONFIG)
 session = Session(engine)

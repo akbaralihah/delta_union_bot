@@ -11,7 +11,7 @@ class User(Base):
     user_id: Mapped[int] = mapped_column(BIGINT, unique=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=True)
     username: Mapped[str] = mapped_column(String(255), nullable=True)
-    lang: Mapped[str] = mapped_column(String)
+    lang: Mapped[str] = mapped_column(String, default="UZ")
 
     def __repr__(self):
         return f"<User id={self.id} tg={self.user_id} lang={self.lang}>"

@@ -1,5 +1,4 @@
 import logging
-
 from aiogram import html, F
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
@@ -12,13 +11,15 @@ from bot.reply import (
     main_menu_buttons,
     admin_menu_buttons,
     choice_search_menu_buttons,
-    confirm_keyboard, language_keyboard
+    confirm_keyboard,
+    language_keyboard
 )
 from bot.states import UserStates
 from bot.translations import translate
 from bot.utils import track, ADMINS, search_by_shipping_mark, search_cargo
-from db.configs import session, CHANNEL_ID
+from db.configs import session
 from db.models import User
+from settings import env
 
 
 @dp.message(Command(commands=["start", "restart"]))
@@ -46,12 +47,12 @@ async def command_start_handler(msg: Message) -> None:
         return
 
     lang = user.lang
-    answer_text = translate(lang, "greeting", name=html.bold(msg.from_user.full_name))
+    answer_text = translate(lang, "greeting", name=f"<b>{html.quote(msg.from_user.full_name)}</b>")
 
     if msg.from_user.id in ADMINS:
-        await msg.answer(answer_text, reply_markup=admin_menu_buttons(lang))
+        await msg.answer(answer_text, reply_markup=admin_menu_buttons(lang), parse_mode=ParseMode.HTML)
     else:
-        await msg.answer(answer_text, reply_markup=main_menu_buttons(lang))
+        await msg.answer(answer_text, reply_markup=main_menu_buttons(lang), parse_mode=ParseMode.HTML)
 
 
 @dp.message(F.text == translate("UZ", "change_language"))
@@ -113,24 +114,26 @@ async def container_number_handler(msg: Message, state: FSMContext) -> None:
     response: dict = track(msg.text, lang)
     message_text = response.get("message")
     await state.clear()
+
     if response["status"] != 200:
         await msg.bot.send_message(
             response["reception"],
-            text=f"⚠ *Error:* `{response['message']}`\n" \
-                 f"👤 *From:* [{user.full_name}](tg://user?id={user.id})",
-            parse_mode=ParseMode.MARKDOWN_V2
+            text=f"⚠ <b>Error:</b> {html.quote(response['message'])}\n"
+                 f"👤 <b>From:</b> <a href='tg://user?id={user.id}'>{html.quote(user.full_name)}</a>",
+            parse_mode=ParseMode.HTML
         )
+
     if msg.from_user.id in ADMINS:
         await msg.reply(
             text=message_text,
             reply_markup=admin_menu_buttons(lang),
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.HTML
         )
     else:
         await msg.reply(
             text=message_text,
             reply_markup=main_menu_buttons(lang),
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.HTML
         )
 
 
@@ -141,24 +144,26 @@ async def cargo_number_handler(msg: Message, state: FSMContext) -> None:
     response = search_by_shipping_mark(msg.text, lang)
     message_text = response["message"]
     await state.clear()
+
     if response["status"] != 200:
         await msg.bot.send_message(
             response["reception"],
-            text=f"⚠ *Error:* `{response['message']}`\n" \
-                 f"👤 *From:* [{user.full_name}](tg://user?id={user.id})",
-            parse_mode=ParseMode.MARKDOWN_V2
+            text=f"⚠ <b>Error:</b> {html.quote(response['message'])}\n"
+                 f"👤 <b>From:</b> <a href='tg://user?id={user.user_id}'>{html.quote(user.full_name)}</a>",
+            parse_mode=ParseMode.HTML
         )
+
     if msg.from_user.id in ADMINS:
         await msg.reply(
             text=message_text,
             reply_markup=admin_menu_buttons(lang),
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.HTML
         )
     else:
         await msg.reply(
             text=message_text,
             reply_markup=main_menu_buttons(lang),
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.HTML
         )
 
 
@@ -169,24 +174,26 @@ async def cargo_id_handler(msg: Message, state: FSMContext) -> None:
     response = search_cargo(msg.text, lang)
     message_text = response["message"]
     await state.clear()
+
     if response["status"] != 200:
         await msg.bot.send_message(
             response["reception"],
-            text=f"⚠ *Error:* `{response['message']}`\n" \
-                 f"👤 *From:* [{user.full_name}](tg://user?id={user.id})",
-            parse_mode=ParseMode.MARKDOWN_V2
+            text=f"⚠ <b>Error:</b> {html.quote(response['message'])}\n"
+                 f"👤 <b>From:</b> <a href='tg://user?id={user.id}'>{html.quote(user.full_name)}</a>",
+            parse_mode=ParseMode.HTML
         )
+
     if msg.from_user.id in ADMINS:
         await msg.reply(
             text=message_text,
             reply_markup=admin_menu_buttons(lang),
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.HTML
         )
     else:
         await msg.reply(
             text=message_text,
             reply_markup=main_menu_buttons(lang),
-            parse_mode=ParseMode.MARKDOWN
+            parse_mode=ParseMode.HTML
         )
 
 
@@ -196,14 +203,9 @@ async def admin_command_handler(msg: Message) -> None:
     lang = User.get_user_lang(msg.from_user.id, session)
     answer_text = "https://t.me/Mr_bob0921"
     if msg.from_user.id in ADMINS:
-        await msg.answer(
-            text=answer_text,
-            reply_markup=admin_menu_buttons(lang)
-        )
-    await msg.answer(
-        text=answer_text,
-        reply_markup=main_menu_buttons(lang)
-    )
+        await msg.answer(text=answer_text, reply_markup=admin_menu_buttons(lang))
+    else:
+        await msg.answer(text=answer_text, reply_markup=main_menu_buttons(lang))
 
 
 @dp.message(F.text == translate("UZ", "advert"))
@@ -223,27 +225,13 @@ async def preview_advert_handler(msg: Message, state: FSMContext) -> None:
     await state.update_data(advert_msg=msg)
 
     if msg.text:
-        await msg.answer(
-            text=msg.text,
-            reply_markup=confirm_keyboard(lang)
-        )
+        await msg.answer(msg.text, reply_markup=confirm_keyboard(lang))
     elif msg.photo:
-        await msg.answer_photo(
-            photo=msg.photo[-1].file_id,
-            caption=msg.caption or "",
-            reply_markup=confirm_keyboard(lang))
+        await msg.answer_photo(msg.photo[-1].file_id, caption=msg.caption or "", reply_markup=confirm_keyboard(lang))
     elif msg.video:
-        await msg.answer_video(
-            video=msg.video.file_id,
-            caption=msg.caption or "",
-            reply_markup=confirm_keyboard(lang)
-        )
+        await msg.answer_video(msg.video.file_id, caption=msg.caption or "", reply_markup=confirm_keyboard(lang))
     elif msg.animation:
-        await msg.answer_animation(
-            animation=msg.animation.file_id,
-            caption=msg.caption or "",
-            reply_markup=confirm_keyboard(lang)
-        )
+        await msg.answer_animation(msg.animation.file_id, caption=msg.caption or "", reply_markup=confirm_keyboard(lang))
     else:
         await msg.answer(translate(lang, "unknown_content"))
         return
@@ -272,7 +260,7 @@ async def send_advert_to_all(callback: CallbackQuery, state: FSMContext) -> None
     for uid in user_ids:
         try:
             if msg.text:
-                await bot.send_message(uid, msg.text)
+                await bot.send_message(uid, msg.text, parse_mode=ParseMode.HTML)
             elif msg.photo:
                 await bot.send_photo(uid, msg.photo[-1].file_id, caption=msg.caption or "")
             elif msg.video:
@@ -282,11 +270,14 @@ async def send_advert_to_all(callback: CallbackQuery, state: FSMContext) -> None
             else:
                 continue
             success += 1
+        except TelegramForbiddenError:
+            failed += 1
+            continue
         except TelegramBadRequest:
             failed += 1
             continue
         except Exception as e:
-            print(f"Error: {e}")
+            logging.error(f"Error: {e}")
             failed += 1
             continue
 
@@ -296,7 +287,7 @@ async def send_advert_to_all(callback: CallbackQuery, state: FSMContext) -> None
     await state.clear()
 
 
-@dp.channel_post(F.chat.id == CHANNEL_ID)
+@dp.channel_post(F.chat.id == env.CHANNEL_ID)
 async def forward_channel_post(msg: Message):
     user_ids = User.get_all_user_ids(session)
     success, failed = 0, 0
@@ -304,7 +295,7 @@ async def forward_channel_post(msg: Message):
     for uid in user_ids:
         try:
             if msg.text:
-                await bot.send_message(uid, msg.text)
+                await bot.send_message(uid, msg.text, parse_mode=ParseMode.HTML)
             elif msg.photo:
                 await bot.send_photo(uid, msg.photo[-1].file_id, caption=msg.caption or "")
             elif msg.video:

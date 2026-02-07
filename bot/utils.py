@@ -44,7 +44,7 @@ def track(user_input: str, lang: str) -> dict:
         return response
 
     expected_headers = [
-        "Client", "Factory", "Container №", "ChN Platform", "Product name",
+        "Clientsha", "Factory", "Container №", "CN Platform", "Product name",
         "Direction", "Dispatch", "Border", "Arrive", "Status", "Customer status"
     ]
 
@@ -68,7 +68,7 @@ def track(user_input: str, lang: str) -> dict:
         container_id = str(row.get("Container №", "")).replace("#", "").strip().lower()
         data = {}
         if user_input == container_id:
-            status = row.get("Customer status", "-")
+            status = row.get("Status", "-")
             if status.isdigit():
                 status += "km"
             data.update({

@@ -27,6 +27,7 @@ LANG = {
             "date": "🗓 Sana",
             "header": "Hurmatli mijoz, assalomu alaykum!",
             "footer": "Hurmat bilan, Delta Union Logistics\nhttps://t.me/deltaunionlogistics",
+            "waiting_for_data": "Ma'lumotlar kutilmoqda",
             "full_container": {
                 "company_name": "🏢 Korxona nomi",
                 "product_name": "📦 Yuk nomi",
@@ -83,6 +84,7 @@ LANG = {
             "date": "🗓 Дата",
             "header": "Уважаемый клиент, здравствуйте!",
             "footer": "С уважением, Delta Union Logistics\nhttps://t.me/deltaunionlogistics",
+            "waiting_for_data": "Данные ожидаются",
             "full_container": {
                 "company_name": "🏢 Название компании",
                 "product_name": "📦 Наименование груза",

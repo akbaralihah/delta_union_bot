@@ -74,7 +74,7 @@ def track(user_input: str, lang: str) -> dict:
             if status.isdigit():
                 status += "km"
             data.update({
-                "company_name": row.get("Client", "").strip(), 
+                # "company_name": row.get("Client", "").strip(),
                 "product_name": row.get("Product name", "").strip(),
                 "container_id": container_id.upper().strip(),
                 "platform_id": str(row.get("KZ Platform", "")).strip() or str(row.get("ChN Platform", "")).strip(),

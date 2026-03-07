@@ -67,7 +67,7 @@ def track(user_input: str, lang: str) -> dict:
     for row in rows:
         container_id = str(row.get("Container №", "")).replace("#", "").strip().lower()
         data = {}
-        if user_input == container_id:
+        if user_input.lower() == container_id.lower():
             status = row.get("Customer status")
             if not status:
                 status = translate(lang, "message.waiting_for_data")
@@ -76,7 +76,7 @@ def track(user_input: str, lang: str) -> dict:
             data.update({
                 "company_name": row.get("Client", "").strip(), 
                 "product_name": row.get("Product name", "").strip(),
-                "container_id": container_id.strip(),
+                "container_id": container_id.upper().strip(),
                 "platform_id": str(row.get("KZ Platform", "")).strip() or str(row.get("ChN Platform", "")).strip(),
                 "status": status.strip()
             })

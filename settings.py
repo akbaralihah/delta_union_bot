@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     CHANNEL_ID: int
     ADMINS: List[int] = Field(default_factory=list)
 
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB_ID: int = 0
+
     DB_USER: str
     DB_PASSWORD: str
     DB_NAME: str
@@ -18,6 +22,10 @@ class Settings(BaseSettings):
     CARGO_1_SHEET_URL: str
     CARGO_2_SHEET_URL: str
     GOOGLE_CREDENTIALS_PATH: str
+
+    @property
+    def redis_url(self):
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB_ID}"
 
     @property
     def db_url(self) -> str:

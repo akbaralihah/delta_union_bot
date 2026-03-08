@@ -1,4 +1,5 @@
 import html
+import json
 import logging
 from datetime import datetime
 from typing import Optional, Dict, Callable, Any
@@ -6,6 +7,8 @@ from typing import Optional, Dict, Callable, Any
 import gspread_asyncio
 from google.oauth2.service_account import Credentials
 from gspread.exceptions import GSpreadException
+from cachetools import TTLCache
+from redis.asyncio import Redis
 
 from bot.translations import translate
 from settings import settings
@@ -25,10 +28,31 @@ def get_creds() -> Credentials:
 
 agcm = gspread_asyncio.AsyncioGspreadClientManager(get_creds)
 
+redis_cache = Redis.from_url(settings.redis_url, decode_responses=True)
+
 
 class AsyncGoogleSheetsManager:
-    def __init__(self, client_manager: gspread_asyncio.AsyncioGspreadClientManager):
+    def __init__(self, client_manager: gspread_asyncio.AsyncioGspreadClientManager, redis: Redis):
         self.client_manager = client_manager
+        self.cache = redis
+
+    async def get_all_records(self, url: str) -> list[dict]:
+        cached_data = await self.cache.get(url)
+        if cached_data:
+            return json.loads(cached_data)
+
+        try:
+            client = await self.client_manager.authorize()
+            spreadsheet = await client.open_by_url(url)
+            sheet = await spreadsheet.get_worksheet(0)
+            records = await sheet.get_all_records()
+
+            await self.cache.setex(url, 60, json.dumps(records))
+            return records
+
+        except Exception as e:
+            logger.error(f"Google Sheets fetch error for {url}: {e}")
+            return []
 
     async def get_sheet(self, url: str) -> Optional[gspread_asyncio.AsyncioGspreadWorksheet]:
         try:
@@ -63,7 +87,7 @@ class AsyncGoogleSheetsManager:
             raise
 
 
-gs_manager = AsyncGoogleSheetsManager(agcm)
+gs_manager = AsyncGoogleSheetsManager(agcm, redis_cache)
 
 
 def _build_response(status: int, message: str) -> Dict[str, Any]:

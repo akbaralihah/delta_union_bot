@@ -25,11 +25,38 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 
+async def safe_copy_message(bot: Bot, chat_id: int, from_chat_id: int, message_id: int) -> bool:
+    """Безопасная пересылка с системой fallback/retry для обхода лимитов Telegram"""
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            await bot.copy_message(chat_id=chat_id, from_chat_id=from_chat_id, message_id=message_id)
+            return True
+        except TelegramForbiddenError:
+            # Пользователь заблокировал бота, нет смысла повторять
+            return False
+        except TelegramBadRequest as e:
+            # Ошибки вроде "chat not found" (пользователь удалил аккаунт)
+            logger.warning(f"Bad Request for user {chat_id}: {e}")
+            return False
+        except TelegramRetryAfter as e:
+            # Телеграм просит подождать из-за превышения лимитов (Flood Control)
+            logger.warning(f"Flood limit exceeded. Sleeping for {e.retry_after} seconds.")
+            await asyncio.sleep(e.retry_after)
+        except Exception as e:
+            # Временные сетевые сбои
+            if attempt == max_retries - 1:
+                logger.error(f"Failed to send to {chat_id} after {max_retries} attempts: {e}")
+                return False
+            await asyncio.sleep(1)
+    return False
+
+
 @router.message(F.text.in_([translate("UZ", "admin"), translate("RU", "admin")]))
 async def admin_command_handler(msg: Message, session: AsyncSession) -> None:
     lang = await User.get_user_lang(msg.from_user.id, session=session)
     answer_text = "https://t.me/Mr_bob0921"
-    
+
     if msg.from_user.id in settings.ADMINS:
         await msg.answer(text=answer_text, reply_markup=admin_menu_buttons(lang))
     else:
@@ -39,10 +66,10 @@ async def admin_command_handler(msg: Message, session: AsyncSession) -> None:
 @router.message(F.text.in_([translate("UZ", "advert"), translate("RU", "advert")]))
 async def advert_command_handler(msg: Message, state: FSMContext, session: AsyncSession) -> Message | None:
     lang = await User.get_user_lang(msg.from_user.id, session=session)
-    
+
     if msg.from_user.id not in settings.ADMINS:
         return await msg.answer(translate(lang, "no_permission"))
-    
+
     await msg.answer(translate(lang, "send_advert"))
     await state.set_state(UserStates.advert)
     return None
@@ -69,7 +96,7 @@ async def preview_advert_handler(msg: Message, state: FSMContext, session: Async
 @router.callback_query(F.data.in_(["confirm_send", "cancel_send"]))
 async def send_advert_to_all(callback: CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot) -> None:
     lang = await User.get_user_lang(callback.from_user.id, session=session)
-    
+
     try:
         await callback.message.delete()
     except TelegramBadRequest:
@@ -87,16 +114,18 @@ async def send_advert_to_all(callback: CallbackQuery, state: FSMContext, session
     user_ids = await User.get_all_user_ids(session)
     success, failed = 0, 0
 
+    await callback.message.answer("⏳ Рассылка началась, это может занять время...")
+
     for uid in user_ids:
-        try:
-            await bot.copy_message(chat_id=uid, from_chat_id=chat_id, message_id=msg_id)
+        # Используем нашу безопасную функцию для рассылки
+        is_sent = await safe_copy_message(bot, uid, chat_id, msg_id)
+        if is_sent:
             success += 1
-            await asyncio.sleep(0.05)
-        except (TelegramForbiddenError, TelegramBadRequest):
+        else:
             failed += 1
-        except Exception as e:
-            logger.error(f"Error sending advert to {uid}: {e}")
-            failed += 1
+
+        # ОБЯЗАТЕЛЬНАЯ ПАУЗА, чтобы не забанили бота (максимум 20-30 сообщений в секунду)
+        await asyncio.sleep(0.05)
 
     await callback.message.answer(translate(lang, "advert_sent", success=success, failed=failed))
     await state.clear()
@@ -108,14 +137,12 @@ async def forward_channel_post(msg: Message, session: AsyncSession, bot: Bot):
     success, failed = 0, 0
 
     for uid in user_ids:
-        try:
-            await bot.copy_message(chat_id=uid, from_chat_id=msg.chat.id, message_id=msg.message_id)
+        is_sent = await safe_copy_message(bot, uid, msg.chat.id, msg.message_id)
+        if is_sent:
             success += 1
-            await asyncio.sleep(0.05)
-        except (TelegramForbiddenError, TelegramBadRequest):
+        else:
             failed += 1
-        except Exception as e:
-            logger.error(f"Error forwarding channel post to {uid}: {e}")
-            failed += 1
+
+        await asyncio.sleep(0.05)
 
     logger.info(f"Forwarded channel post. Success: {success}, Failed: {failed}")

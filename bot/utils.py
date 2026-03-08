@@ -6,7 +6,6 @@ from typing import Optional, Dict, Callable, Any
 
 import gspread_asyncio
 from google.oauth2.service_account import Credentials
-from gspread.exceptions import GSpreadException
 from redis.asyncio import Redis
 
 from bot.translations import translate
@@ -34,8 +33,11 @@ class AsyncGoogleSheetsManager:
         self.client_manager = client_manager
         self.cache = redis
 
-    async def get_all_records(self, url: str) -> list[dict]:
-        cached_data = await self.cache.get(url)
+    async def get_all_records(self, url: str, header_row: int = 1) -> list[dict]:
+        # Добавляем header_row в ключ кэша, чтобы данные не смешивались
+        cache_key = f"sheet:{url}:head:{header_row}"
+        cached_data = await self.cache.get(cache_key)
+
         if cached_data:
             return json.loads(cached_data)
 
@@ -43,38 +45,35 @@ class AsyncGoogleSheetsManager:
             client = await self.client_manager.authorize()
             spreadsheet = await client.open_by_url(url)
             sheet = await spreadsheet.get_worksheet(0)
-            records = await sheet.get_all_records()
 
-            await self.cache.setex(url, 60, json.dumps(records))
+            # Получаем всю таблицу как список списков (защита от ошибки неуникальных заголовков)
+            values = await sheet.get_all_values()
+
+            if len(values) < header_row:
+                return []
+
+            # Берем нужную строку как заголовки (учитываем индексацию с 0)
+            raw_headers = values[header_row - 1]
+
+            # Делаем заголовки уникальными (если есть дубликаты или пустые ячейки)
+            unique_headers = []
+            for i, h in enumerate(raw_headers):
+                h_str = str(h).strip()
+                if not h_str or h_str in unique_headers:
+                    unique_headers.append(f"{h_str}_{i}" if h_str else f"Col_{i}")
+                else:
+                    unique_headers.append(h_str)
+
+            # Собираем данные в словари
+            records = [dict(zip(unique_headers, row)) for row in values[header_row:]]
+
+            # Кэшируем на 60 секунд
+            await self.cache.setex(cache_key, 60, json.dumps(records))
             return records
 
         except Exception as e:
             logger.error(f"Google Sheets fetch error for {url}: {e}")
             return []
-
-
-    async def find_row_by_value(
-            self,
-            sheet: Optional[gspread_asyncio.AsyncioGspreadWorksheet],
-            search_value: str,
-            header_row: int = 1
-    ) -> Optional[Dict[str, str]]:
-        if not sheet:
-            return None
-
-        try:
-            cell = await sheet.find(search_value)
-            if not cell or cell.row <= header_row:
-                return None
-
-            headers = await sheet.row_values(header_row)
-            row_data = await sheet.row_values(cell.row)
-
-            return {headers[i]: (row_data[i] if i < len(row_data) else "") for i in range(len(headers))}
-
-        except GSpreadException as e:
-            logger.error(f"GSpread search error: {e}")
-            raise
 
 
 gs_manager = AsyncGoogleSheetsManager(agcm, redis_client)
@@ -109,7 +108,8 @@ async def _process_search(
     if not user_input:
         return _build_response(400, "Input not entered.")
 
-    records = await gs_manager.get_all_records(sheet_url)
+    # Теперь мы передаем header_row в менеджер
+    records = await gs_manager.get_all_records(sheet_url, header_row)
 
     if not records:
         return _build_response(500, "Error: Unable to connect to Google Sheets or sheet is empty.")
@@ -141,14 +141,14 @@ async def track(user_input: str, lang: str) -> Dict[str, Any]:
         status = row.get("Customer status")
         if not status:
             status = translate(lang, "message.waiting_for_data")
-        if status.isdigit():
-            status += "km"
+        if str(status).isdigit():
+            status = str(status) + "km"
 
         return {
-            "product_name": row.get("Product name", "").strip(),
+            "product_name": str(row.get("Product name", "")).strip(),
             "container_id": str(row.get("Container №", "")).replace("#", "").strip().upper(),
             "platform_id": str(row.get("KZ Platform", "") or row.get("ChN Platform", "")).strip(),
-            "status": status.strip()
+            "status": str(status).strip()
         }
 
     return await _process_search(
@@ -164,14 +164,14 @@ async def track(user_input: str, lang: str) -> Dict[str, Any]:
 async def search_by_shipping_mark(user_input: str, lang: str) -> Dict[str, Any]:
     def mapper(row: Dict[str, str]) -> Dict[str, str]:
         return {
-            "shipping_mark": row.get("Shipping mark", "").strip(),
-            "name": row.get("Name", "").strip(),
-            "product_name": row.get("Product Name", "").strip(),
-            "package": row.get("Package", "").strip(),
-            "total_cbm": row.get("Total cbm", "").strip(),
-            "date_of_arrive": row.get("Date of arrive at destination", "").strip(),
-            "status": row.get("Status", "").strip(),
-            "destination": row.get("Destination", "").strip(),
+            "shipping_mark": str(row.get("Shipping mark", "")).strip(),
+            "name": str(row.get("Name", "")).strip(),
+            "product_name": str(row.get("Product Name", "")).strip(),
+            "package": str(row.get("Package", "")).strip(),
+            "total_cbm": str(row.get("Total cbm", "")).strip(),
+            "date_of_arrive": str(row.get("Date of arrive at destination", "")).strip(),
+            "status": str(row.get("Status", "")).strip(),
+            "destination": str(row.get("Destination", "")).strip(),
         }
 
     return await _process_search(
@@ -187,12 +187,12 @@ async def search_by_shipping_mark(user_input: str, lang: str) -> Dict[str, Any]:
 async def search_cargo(cargo_id: str, lang: str) -> Dict[str, Any]:
     def mapper(row: Dict[str, str]) -> Dict[str, str]:
         return {
-            "id": cargo_id.strip(),
-            "client_name": row.get("Client Name", "—").strip(),
-            "phone_number": row.get("Telefon Nomer", "—").strip(),
-            "product_name": row.get("Product Name", "—").strip(),
-            "gross_weight": row.get("GW", "—").strip(),
-            "status": row.get("Status", "—").strip()
+            "id": str(cargo_id).strip(),
+            "client_name": str(row.get("Client Name", "—")).strip(),
+            "phone_number": str(row.get("Telefon Nomer", "—")).strip(),
+            "product_name": str(row.get("Product Name", "—")).strip(),
+            "gross_weight": str(row.get("GW", "—")).strip(),
+            "status": str(row.get("Status", "—")).strip()
         }
 
     return await _process_search(

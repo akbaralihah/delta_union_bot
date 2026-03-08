@@ -1,10 +1,15 @@
+import asyncio
 import logging
 from aiogram import Router, F, Bot
 from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
+from aiogram.exceptions import (
+    TelegramBadRequest,
+    TelegramForbiddenError,
+    TelegramRetryAfter,
+)
 
 from bot.reply import (
     main_menu_buttons,
@@ -86,6 +91,7 @@ async def send_advert_to_all(callback: CallbackQuery, state: FSMContext, session
         try:
             await bot.copy_message(chat_id=uid, from_chat_id=chat_id, message_id=msg_id)
             success += 1
+            await asyncio.sleep(0.05)
         except (TelegramForbiddenError, TelegramBadRequest):
             failed += 1
         except Exception as e:
@@ -105,6 +111,7 @@ async def forward_channel_post(msg: Message, session: AsyncSession, bot: Bot):
         try:
             await bot.copy_message(chat_id=uid, from_chat_id=msg.chat.id, message_id=msg.message_id)
             success += 1
+            await asyncio.sleep(0.05)
         except (TelegramForbiddenError, TelegramBadRequest):
             failed += 1
         except Exception as e:

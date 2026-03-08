@@ -1,3 +1,5 @@
+import logging
+
 from aiogram import Router, html, F
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
@@ -14,6 +16,8 @@ from bot.translations import translate
 from bot.utils import track, search_by_shipping_mark, search_cargo
 from db.models import User
 from settings import settings
+
+logger = logging.getLogger(__file__)
 
 router = Router()
 
@@ -47,13 +51,17 @@ async def container_number_handler(msg: Message, state: FSMContext, session: Asy
     message_text = response.get("message")
     await state.clear()
 
-    if response["status"] != 200:
-        await msg.bot.send_message(
-            response["reception"],
-            text=f"⚠ <b>Error:</b> {html.quote(response['message'])}\n"
-                 f"👤 <b>From:</b> <a href='tg://user?id={msg.from_user.id}'>{html.quote(msg.from_user.full_name)}</a>",
-            parse_mode=ParseMode.HTML
-        )
+    if response["status"] not in (200, 404):
+        error_msg = f"⚠ <b>Error:</b> {html.quote(response['message'])}\n👤 <b>From:</b> <a href='tg://user?id={msg.from_user.id}'>{html.quote(msg.from_user.full_name)}</a>"
+
+        try:
+            await msg.bot.send_message(
+                chat_id=response["reception"],
+                text=error_msg,
+                parse_mode=ParseMode.HTML
+            )
+        except Exception as e:
+            logger.error(f"Failed to send error to group {response['reception']}: {e}")
 
     reply_markup = admin_menu_buttons(lang) if msg.from_user.id in settings.ADMINS else main_menu_buttons(lang)
     await msg.reply(text=message_text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
@@ -66,13 +74,17 @@ async def cargo_number_handler(msg: Message, state: FSMContext, session: AsyncSe
     message_text = response["message"]
     await state.clear()
 
-    if response["status"] != 200:
-        await msg.bot.send_message(
-            response["reception"],
-            text=f"⚠ <b>Error:</b> {html.quote(response['message'])}\n"
-                 f"👤 <b>From:</b> <a href='tg://user?id={msg.from_user.id}'>{html.quote(msg.from_user.full_name)}</a>",
-            parse_mode=ParseMode.HTML
-        )
+    if response["status"] not in (200, 404):
+        error_msg = f"⚠ <b>Error:</b> {html.quote(response['message'])}\n👤 <b>From:</b> <a href='tg://user?id={msg.from_user.id}'>{html.quote(msg.from_user.full_name)}</a>"
+
+        try:
+            await msg.bot.send_message(
+                chat_id=response["reception"],
+                text=error_msg,
+                parse_mode=ParseMode.HTML
+            )
+        except Exception as e:
+            logger.error(f"Failed to send error to group {response['reception']}: {e}")
 
     reply_markup = admin_menu_buttons(lang) if msg.from_user.id in settings.ADMINS else main_menu_buttons(lang)
     await msg.reply(text=message_text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
@@ -85,13 +97,17 @@ async def cargo_id_handler(msg: Message, state: FSMContext, session: AsyncSessio
     message_text = response["message"]
     await state.clear()
 
-    if response["status"] != 200:
-        await msg.bot.send_message(
-            response["reception"],
-            text=f"⚠ <b>Error:</b> {html.quote(response['message'])}\n"
-                 f"👤 <b>From:</b> <a href='tg://user?id={msg.from_user.id}'>{html.quote(msg.from_user.full_name)}</a>",
-            parse_mode=ParseMode.HTML
-        )
+    if response["status"] not in (200, 404):
+        error_msg = f"⚠ <b>Error:</b> {html.quote(response['message'])}\n👤 <b>From:</b> <a href='tg://user?id={msg.from_user.id}'>{html.quote(msg.from_user.full_name)}</a>"
+
+        try:
+            await msg.bot.send_message(
+                chat_id=response["reception"],
+                text=error_msg,
+                parse_mode=ParseMode.HTML
+            )
+        except Exception as e:
+            logger.error(f"Failed to send error to group {response['reception']}: {e}")
 
     reply_markup = admin_menu_buttons(lang) if msg.from_user.id in settings.ADMINS else main_menu_buttons(lang)
     await msg.reply(text=message_text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)

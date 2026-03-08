@@ -7,10 +7,10 @@ from typing import Optional, Dict, Callable, Any
 import gspread_asyncio
 from google.oauth2.service_account import Credentials
 from gspread.exceptions import GSpreadException
-from cachetools import TTLCache
 from redis.asyncio import Redis
 
 from bot.translations import translate
+from db.configs import redis_client
 from settings import settings
 
 logger = logging.getLogger(__name__)
@@ -27,8 +27,6 @@ def get_creds() -> Credentials:
 
 
 agcm = gspread_asyncio.AsyncioGspreadClientManager(get_creds)
-
-redis_cache = Redis.from_url(settings.redis_url, decode_responses=True)
 
 
 class AsyncGoogleSheetsManager:
@@ -54,14 +52,6 @@ class AsyncGoogleSheetsManager:
             logger.error(f"Google Sheets fetch error for {url}: {e}")
             return []
 
-    async def get_sheet(self, url: str) -> Optional[gspread_asyncio.AsyncioGspreadWorksheet]:
-        try:
-            client = await self.client_manager.authorize()
-            spreadsheet = await client.open_by_url(url)
-            return await spreadsheet.get_worksheet(0)
-        except Exception as e:
-            logger.error(f"Cannot connect to table {url}: {e}")
-            return None
 
     async def find_row_by_value(
             self,
@@ -87,13 +77,11 @@ class AsyncGoogleSheetsManager:
             raise
 
 
-gs_manager = AsyncGoogleSheetsManager(agcm, redis_cache)
+gs_manager = AsyncGoogleSheetsManager(agcm, redis_client)
 
 
 def _build_response(status: int, message: str) -> Dict[str, Any]:
-    # Use the first admin from settings as a fallback for reception
-    reception = settings.ADMINS[0] if settings.ADMINS else 0
-    return {"status": status, "message": message, "reception": reception}
+    return {"status": status, "message": message, "reception": settings.ERROR_GROUP_ID}
 
 
 def _generate_html_reply(data: Dict[str, str], lang: str, category: str) -> str:
@@ -121,21 +109,29 @@ async def _process_search(
     if not user_input:
         return _build_response(400, "Input not entered.")
 
-    sheet = await gs_manager.get_sheet(sheet_url)
-    if not sheet:
-        return _build_response(500, "Error: Unable to connect to Google Sheets.")
+    records = await gs_manager.get_all_records(sheet_url)
+
+    if not records:
+        return _build_response(500, "Error: Unable to connect to Google Sheets or sheet is empty.")
+
+    user_input_lower = user_input.lower().strip()
+    found_row = None
+
+    for row in records:
+        if any(user_input_lower in str(val).lower().strip() for val in row.values()):
+            found_row = row
+            break
+
+    if not found_row:
+        return _build_response(404, translate(lang, "message.waiting_for_data"))
 
     try:
-        row = await gs_manager.find_row_by_value(sheet, user_input, header_row=header_row)
-    except GSpreadException as e:
-        return _build_response(400, f"Error retrieving data: {e}")
-
-    if not row:
-        return _build_response(404, "Data not found.")
-
-    data = data_mapper(row)
-    reply_message = _generate_html_reply(data, lang, category)
-    return _build_response(200, reply_message)
+        data = data_mapper(found_row)
+        reply_message = _generate_html_reply(data, lang, category)
+        return _build_response(200, reply_message)
+    except Exception as e:
+        logger.error(f"Data mapping error: {e}")
+        return _build_response(500, "Error formatting data.")
 
 
 async def track(user_input: str, lang: str) -> Dict[str, Any]:

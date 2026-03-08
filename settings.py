@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     BOT_TOKEN: str
     CHANNEL_ID: int
     ADMINS: List[int] = Field(default_factory=list)
+    ERROR_GROUP_ID: int
 
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379

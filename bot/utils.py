@@ -1,6 +1,7 @@
 import html
 import json
 import logging
+import asyncio
 from datetime import datetime
 from typing import Optional, Dict, Callable, Any
 
@@ -42,6 +43,10 @@ class AsyncGoogleSheetsManager:
             return json.loads(cached_data)
 
         try:
+            # ИСПРАВЛЕНИЕ: Сбрасываем старый инстанс клиента, чтобы не зависать
+            # на разорванных (мертвых) keep-alive соединениях от Google
+            self.client_manager.client = None
+
             client = await self.client_manager.authorize()
             spreadsheet = await client.open_by_url(url)
             sheet = await spreadsheet.get_worksheet(0)
@@ -108,7 +113,6 @@ async def _process_search(
     if not user_input:
         return _build_response(400, "Input not entered.")
 
-    # Теперь мы передаем header_row в менеджер
     records = await gs_manager.get_all_records(sheet_url, header_row)
 
     if not records:
@@ -151,14 +155,22 @@ async def track(user_input: str, lang: str) -> Dict[str, Any]:
             "status": str(status).strip()
         }
 
-    return await _process_search(
-        user_input=clean_input,
-        lang=lang,
-        sheet_url=settings.CONTAINER_SHEET_URL,
-        header_row=1,
-        category="full_container",
-        data_mapper=mapper
-    )
+    # ИСПРАВЛЕНИЕ: Оборачиваем запрос в таймаут
+    try:
+        return await asyncio.wait_for(
+            _process_search(
+                user_input=clean_input,
+                lang=lang,
+                sheet_url=settings.CONTAINER_SHEET_URL,
+                header_row=1,
+                category="full_container",
+                data_mapper=mapper
+            ),
+            timeout=15.0
+        )
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout error tracking container: {clean_input}")
+        return _build_response(504, "⏳ Google Sheets ulanishida xatolik / Нет ответа от таблицы. Iltimos, keyinroq qayta urinib ko'ring.")
 
 
 async def search_by_shipping_mark(user_input: str, lang: str) -> Dict[str, Any]:
@@ -174,14 +186,22 @@ async def search_by_shipping_mark(user_input: str, lang: str) -> Dict[str, Any]:
             "destination": str(row.get("Destination", "")).strip(),
         }
 
-    return await _process_search(
-        user_input=user_input.strip(),
-        lang=lang,
-        sheet_url=settings.CARGO_1_SHEET_URL,
-        header_row=2,
-        category="groupage_cargo",
-        data_mapper=mapper
-    )
+    # ИСПРАВЛЕНИЕ: Оборачиваем запрос в таймаут
+    try:
+        return await asyncio.wait_for(
+            _process_search(
+                user_input=user_input.strip(),
+                lang=lang,
+                sheet_url=settings.CARGO_1_SHEET_URL,
+                header_row=2,
+                category="groupage_cargo",
+                data_mapper=mapper
+            ),
+            timeout=15.0
+        )
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout error searching shipping mark: {user_input}")
+        return _build_response(504, "⏳ Google Sheets ulanishida xatolik / Нет ответа от таблицы. Iltimos, keyinroq qayta urinib ko'ring.")
 
 
 async def search_cargo(cargo_id: str, lang: str) -> Dict[str, Any]:
@@ -195,11 +215,19 @@ async def search_cargo(cargo_id: str, lang: str) -> Dict[str, Any]:
             "status": str(row.get("Status", "—")).strip()
         }
 
-    return await _process_search(
-        user_input=cargo_id.strip(),
-        lang=lang,
-        sheet_url=settings.CARGO_2_SHEET_URL,
-        header_row=2,
-        category="cargo_tracking",
-        data_mapper=mapper
-    )
+    # ИСПРАВЛЕНИЕ: Оборачиваем запрос в таймаут
+    try:
+        return await asyncio.wait_for(
+            _process_search(
+                user_input=cargo_id.strip(),
+                lang=lang,
+                sheet_url=settings.CARGO_2_SHEET_URL,
+                header_row=2,
+                category="cargo_tracking",
+                data_mapper=mapper
+            ),
+            timeout=15.0
+        )
+    except asyncio.TimeoutError:
+        logger.error(f"Timeout error tracking cargo: {cargo_id}")
+        return _build_response(504, "⏳ Google Sheets ulanishida xatolik / Нет ответа от таблицы. Iltimos, keyinroq qayta urinib ko'ring.")

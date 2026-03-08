@@ -4,11 +4,11 @@ import sys
 
 from aiogram.types import BotCommand
 
+from db.configs import engine, Base
 from bot.dispatcher import bot, dp
 from bot.translations import description_text
-from db.configs import engine, Base
+from bot.utils import periodic_sheets_sync
 
-# Logger configuration
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -19,11 +19,9 @@ logger = logging.getLogger(__name__)
 
 
 async def on_startup() -> None:
-    # Create tables if they don't exist
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
-    # Set bot commands
+
     await bot.set_my_description(description=description_text["UZ"])
     commands = [
         BotCommand(command="start", description="Start the bot"),
@@ -31,6 +29,9 @@ async def on_startup() -> None:
         BotCommand(command="help", description="Help")
     ]
     await bot.set_my_commands(commands=commands)
+
+    asyncio.create_task(periodic_sheets_sync())
+
     logger.info("Bot started successfully")
 
 

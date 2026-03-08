@@ -34,33 +34,21 @@ class AsyncGoogleSheetsManager:
         self.client_manager = client_manager
         self.cache = redis
 
-    async def get_all_records(self, url: str, header_row: int = 1) -> list[dict]:
-        # Добавляем header_row в ключ кэша, чтобы данные не смешивались
+    async def update_cache(self, url: str, header_row: int = 1) -> None:
+        """Скачивает данные из таблицы и обновляет кэш Redis."""
         cache_key = f"sheet:{url}:head:{header_row}"
-        cached_data = await self.cache.get(cache_key)
-
-        if cached_data:
-            return json.loads(cached_data)
-
         try:
-            # ИСПРАВЛЕНИЕ: Сбрасываем старый инстанс клиента, чтобы не зависать
-            # на разорванных (мертвых) keep-alive соединениях от Google
             self.client_manager.client = None
-
             client = await self.client_manager.authorize()
             spreadsheet = await client.open_by_url(url)
             sheet = await spreadsheet.get_worksheet(0)
 
-            # Получаем всю таблицу как список списков (защита от ошибки неуникальных заголовков)
             values = await sheet.get_all_values()
 
             if len(values) < header_row:
-                return []
+                return
 
-            # Берем нужную строку как заголовки (учитываем индексацию с 0)
             raw_headers = values[header_row - 1]
-
-            # Делаем заголовки уникальными (если есть дубликаты или пустые ячейки)
             unique_headers = []
             for i, h in enumerate(raw_headers):
                 h_str = str(h).strip()
@@ -69,19 +57,44 @@ class AsyncGoogleSheetsManager:
                 else:
                     unique_headers.append(h_str)
 
-            # Собираем данные в словари
             records = [dict(zip(unique_headers, row)) for row in values[header_row:]]
 
-            # Кэшируем на 60 секунд
-            await self.cache.setex(cache_key, 60, json.dumps(records))
-            return records
+            # Сохраняем в кэш на 2 часа (7200 секунд), чтобы данные жили до следующего успешного обновления
+            await self.cache.setex(cache_key, 7200, json.dumps(records))
+            logger.info(f"✅ Cache updated successfully for {url}")
 
         except Exception as e:
-            logger.error(f"Google Sheets fetch error for {url}: {e}")
-            return []
+            logger.error(f"❌ Google Sheets fetch error for {url}: {e}")
+
+    async def get_all_records(self, url: str, header_row: int = 1) -> list[dict]:
+        """Мгновенно получает данные только из кэша Redis."""
+        cache_key = f"sheet:{url}:head:{header_row}"
+        cached_data = await self.cache.get(cache_key)
+
+        if cached_data:
+            return json.loads(cached_data)
+
+        # Если данных в Redis еще нет (например, при самом первом запуске)
+        return []
 
 
 gs_manager = AsyncGoogleSheetsManager(agcm, redis_client)
+
+
+# --- Фоновая задача синхронизации ---
+async def periodic_sheets_sync():
+    """Фоновый процесс: обновляет данные каждые 30 минут."""
+    # Даем боту пару секунд на инициализацию перед первым запуском
+    await asyncio.sleep(2)
+    while True:
+        logger.info("🔄 Starting periodic sync of Google Sheets...")
+        await gs_manager.update_cache(settings.CONTAINER_SHEET_URL, header_row=1)
+        await gs_manager.update_cache(settings.CARGO_1_SHEET_URL, header_row=2)
+        await gs_manager.update_cache(settings.CARGO_2_SHEET_URL, header_row=2)
+        logger.info("⏳ Periodic sync completed. Waiting 30 minutes.")
+
+        # Спим 30 минут (1800 секунд)
+        await asyncio.sleep(1800)
 
 
 def _build_response(status: int, message: str) -> Dict[str, Any]:
@@ -90,7 +103,6 @@ def _build_response(status: int, message: str) -> Dict[str, Any]:
 
 def _generate_html_reply(data: Dict[str, str], lang: str, category: str) -> str:
     reply = f"<b>{translate(lang, 'message.header')}</b>\n\n"
-
     for key, value in data.items():
         if not value or value == "—":
             continue
@@ -116,7 +128,7 @@ async def _process_search(
     records = await gs_manager.get_all_records(sheet_url, header_row)
 
     if not records:
-        return _build_response(500, "Error: Unable to connect to Google Sheets or sheet is empty.")
+        return _build_response(503, "⏳ Данные загружаются, пожалуйста, попробуйте через минуту.")
 
     user_input_lower = user_input.lower().strip()
     found_row = None
@@ -138,6 +150,7 @@ async def _process_search(
         return _build_response(500, "Error formatting data.")
 
 
+# --- Функции поиска (теперь без таймаутов, так как Redis быстрый) ---
 async def track(user_input: str, lang: str) -> Dict[str, Any]:
     clean_input = user_input.replace("#", "").strip()
 
@@ -155,22 +168,14 @@ async def track(user_input: str, lang: str) -> Dict[str, Any]:
             "status": str(status).strip()
         }
 
-    # ИСПРАВЛЕНИЕ: Оборачиваем запрос в таймаут
-    try:
-        return await asyncio.wait_for(
-            _process_search(
-                user_input=clean_input,
-                lang=lang,
-                sheet_url=settings.CONTAINER_SHEET_URL,
-                header_row=1,
-                category="full_container",
-                data_mapper=mapper
-            ),
-            timeout=15.0
-        )
-    except asyncio.TimeoutError:
-        logger.error(f"Timeout error tracking container: {clean_input}")
-        return _build_response(504, "⏳ Google Sheets ulanishida xatolik / Нет ответа от таблицы. Iltimos, keyinroq qayta urinib ko'ring.")
+    return await _process_search(
+        user_input=clean_input,
+        lang=lang,
+        sheet_url=settings.CONTAINER_SHEET_URL,
+        header_row=1,
+        category="full_container",
+        data_mapper=mapper
+    )
 
 
 async def search_by_shipping_mark(user_input: str, lang: str) -> Dict[str, Any]:
@@ -186,22 +191,14 @@ async def search_by_shipping_mark(user_input: str, lang: str) -> Dict[str, Any]:
             "destination": str(row.get("Destination", "")).strip(),
         }
 
-    # ИСПРАВЛЕНИЕ: Оборачиваем запрос в таймаут
-    try:
-        return await asyncio.wait_for(
-            _process_search(
-                user_input=user_input.strip(),
-                lang=lang,
-                sheet_url=settings.CARGO_1_SHEET_URL,
-                header_row=2,
-                category="groupage_cargo",
-                data_mapper=mapper
-            ),
-            timeout=15.0
-        )
-    except asyncio.TimeoutError:
-        logger.error(f"Timeout error searching shipping mark: {user_input}")
-        return _build_response(504, "⏳ Google Sheets ulanishida xatolik / Нет ответа от таблицы. Iltimos, keyinroq qayta urinib ko'ring.")
+    return await _process_search(
+        user_input=user_input.strip(),
+        lang=lang,
+        sheet_url=settings.CARGO_1_SHEET_URL,
+        header_row=2,
+        category="groupage_cargo",
+        data_mapper=mapper
+    )
 
 
 async def search_cargo(cargo_id: str, lang: str) -> Dict[str, Any]:
@@ -215,19 +212,11 @@ async def search_cargo(cargo_id: str, lang: str) -> Dict[str, Any]:
             "status": str(row.get("Status", "—")).strip()
         }
 
-    # ИСПРАВЛЕНИЕ: Оборачиваем запрос в таймаут
-    try:
-        return await asyncio.wait_for(
-            _process_search(
-                user_input=cargo_id.strip(),
-                lang=lang,
-                sheet_url=settings.CARGO_2_SHEET_URL,
-                header_row=2,
-                category="cargo_tracking",
-                data_mapper=mapper
-            ),
-            timeout=15.0
-        )
-    except asyncio.TimeoutError:
-        logger.error(f"Timeout error tracking cargo: {cargo_id}")
-        return _build_response(504, "⏳ Google Sheets ulanishida xatolik / Нет ответа от таблицы. Iltimos, keyinroq qayta urinib ko'ring.")
+    return await _process_search(
+        user_input=cargo_id.strip(),
+        lang=lang,
+        sheet_url=settings.CARGO_2_SHEET_URL,
+        header_row=2,
+        category="cargo_tracking",
+        data_mapper=mapper
+    )

@@ -1,11 +1,14 @@
-import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, Session
-from settings import env
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.orm import DeclarativeBase
+from settings import settings
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
-DB_CONFIG = f"postgresql+psycopg2://{env.DB_USER}:{env.DB_PASSWORD}@{env.DB_HOST}:{env.DB_PORT}/{env.DB_NAME}"
-
-engine = create_engine(DB_CONFIG, pool_pre_ping=True)
-session = Session(engine)
+engine = create_async_engine(settings.db_url, pool_pre_ping=True)
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False
+)

@@ -1,60 +1,60 @@
 import html
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Callable
+from typing import Optional, Dict, Callable, Any
 
-import gspread
+import gspread_asyncio
+from google.oauth2.service_account import Credentials
 from gspread.exceptions import GSpreadException
 
 from bot.translations import translate
-from settings import env
+from settings import settings
 
-# Настраиваем логирование вместо обычного print()
 logger = logging.getLogger(__name__)
 
-ADMINS = [1998050207, 5459394614, 5797855429]
+
+def get_creds() -> Credentials:
+    creds = Credentials.from_service_account_file(settings.GOOGLE_CREDENTIALS_PATH)
+    scoped_creds = creds.with_scopes([
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive",
+    ])
+    return scoped_creds
 
 
-class GoogleSheetsManager:
+agcm = gspread_asyncio.AsyncioGspreadClientManager(get_creds)
 
-    def __init__(self, credentials_path: str):
-        self.credentials_path = credentials_path
-        self._client: Optional[gspread.Client] = None
 
-    @property
-    def client(self) -> gspread.Client:
-        if self._client is None:
-            try:
-                self._client = gspread.service_account(filename=self.credentials_path)
-            except Exception as e:
-                logger.error(f"Google API Auth Error: {e}")
-                raise
-        return self._client
+class AsyncGoogleSheetsManager:
+    def __init__(self, client_manager: gspread_asyncio.AsyncioGspreadClientManager):
+        self.client_manager = client_manager
 
-    def get_sheet(self, url: str) -> Optional[gspread.Worksheet]:
+    async def get_sheet(self, url: str) -> Optional[gspread_asyncio.AsyncioGspreadWorksheet]:
         try:
-            return self.client.open_by_url(url).sheet1
+            client = await self.client_manager.authorize()
+            spreadsheet = await client.open_by_url(url)
+            return await spreadsheet.get_worksheet(0)
         except Exception as e:
             logger.error(f"Cannot connect to table {url}: {e}")
             return None
 
-    def find_row_by_value(
+    async def find_row_by_value(
             self,
-            sheet: Optional[gspread.Worksheet],
+            sheet: Optional[gspread_asyncio.AsyncioGspreadWorksheet],
             search_value: str,
             header_row: int = 1
-    ) -> Optional[
-        Dict[str, str]]:
+    ) -> Optional[Dict[str, str]]:
         if not sheet:
             return None
 
         try:
-            cell = sheet.find(search_value, case_sensitive=False)
+            cell = await sheet.find(search_value)
             if not cell or cell.row <= header_row:
                 return None
 
-            headers = sheet.row_values(header_row)
-            row_data = sheet.row_values(cell.row)
+            headers = await sheet.row_values(header_row)
+            row_data = await sheet.row_values(cell.row)
 
             return {headers[i]: (row_data[i] if i < len(row_data) else "") for i in range(len(headers))}
 
@@ -63,11 +63,13 @@ class GoogleSheetsManager:
             raise
 
 
-gs_manager = GoogleSheetsManager(env.GOOGLE_CREDENTIALS_PATH)
+gs_manager = AsyncGoogleSheetsManager(agcm)
 
 
-def _build_response(status: int, message: str) -> dict:
-    return {"status": status, "message": message, "reception": ADMINS[0]}
+def _build_response(status: int, message: str) -> Dict[str, Any]:
+    # Use the first admin from settings as a fallback for reception
+    reception = settings.ADMINS[0] if settings.ADMINS else 0
+    return {"status": status, "message": message, "reception": reception}
 
 
 def _generate_html_reply(data: Dict[str, str], lang: str, category: str) -> str:
@@ -84,41 +86,35 @@ def _generate_html_reply(data: Dict[str, str], lang: str, category: str) -> str:
     return reply
 
 
-def _process_search(
+async def _process_search(
         user_input: str,
         lang: str,
         sheet_url: str,
         header_row: int,
         category: str,
         data_mapper: Callable[[Dict[str, str]], Dict[str, str]]
-) -> dict:
+) -> Dict[str, Any]:
     if not user_input:
         return _build_response(400, "Input not entered.")
 
-    sheet = gs_manager.get_sheet(sheet_url)
+    sheet = await gs_manager.get_sheet(sheet_url)
     if not sheet:
         return _build_response(500, "Error: Unable to connect to Google Sheets.")
 
     try:
-        row = gs_manager.find_row_by_value(sheet, user_input, header_row=header_row)
+        row = await gs_manager.find_row_by_value(sheet, user_input, header_row=header_row)
     except GSpreadException as e:
         return _build_response(400, f"Error retrieving data: {e}")
 
     if not row:
         return _build_response(404, "Data not found.")
 
-    # Используем переданную функцию-маппер для формирования нужного словаря
     data = data_mapper(row)
-
     reply_message = _generate_html_reply(data, lang, category)
     return _build_response(200, reply_message)
 
 
-# ==========================================
-# ЧИСТЫЕ ФУНКЦИИ-ОБРАБОТЧИКИ (Эндпоинты)
-# ==========================================
-
-def track(user_input: str, lang: str) -> dict:
+async def track(user_input: str, lang: str) -> Dict[str, Any]:
     clean_input = user_input.replace("#", "").strip()
 
     def mapper(row: Dict[str, str]) -> Dict[str, str]:
@@ -135,17 +131,17 @@ def track(user_input: str, lang: str) -> dict:
             "status": status.strip()
         }
 
-    return _process_search(
+    return await _process_search(
         user_input=clean_input,
         lang=lang,
-        sheet_url=env.CONTAINER_SHEET_URL,
+        sheet_url=settings.CONTAINER_SHEET_URL,
         header_row=1,
         category="full_container",
         data_mapper=mapper
     )
 
 
-def search_by_shipping_mark(user_input: str, lang: str) -> dict:
+async def search_by_shipping_mark(user_input: str, lang: str) -> Dict[str, Any]:
     def mapper(row: Dict[str, str]) -> Dict[str, str]:
         return {
             "shipping_mark": row.get("Shipping mark", "").strip(),
@@ -158,17 +154,17 @@ def search_by_shipping_mark(user_input: str, lang: str) -> dict:
             "destination": row.get("Destination", "").strip(),
         }
 
-    return _process_search(
+    return await _process_search(
         user_input=user_input.strip(),
         lang=lang,
-        sheet_url=env.CARGO_1_SHEET_URL,
+        sheet_url=settings.CARGO_1_SHEET_URL,
         header_row=2,
         category="groupage_cargo",
         data_mapper=mapper
     )
 
 
-def search_cargo(cargo_id: str, lang: str) -> dict:
+async def search_cargo(cargo_id: str, lang: str) -> Dict[str, Any]:
     def mapper(row: Dict[str, str]) -> Dict[str, str]:
         return {
             "id": cargo_id.strip(),
@@ -179,10 +175,10 @@ def search_cargo(cargo_id: str, lang: str) -> dict:
             "status": row.get("Status", "—").strip()
         }
 
-    return _process_search(
+    return await _process_search(
         user_input=cargo_id.strip(),
         lang=lang,
-        sheet_url=env.CARGO_2_SHEET_URL,
+        sheet_url=settings.CARGO_2_SHEET_URL,
         header_row=2,
         category="cargo_tracking",
         data_mapper=mapper

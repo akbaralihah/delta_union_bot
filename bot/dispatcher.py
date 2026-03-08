@@ -1,12 +1,20 @@
-import os
-
-from aiogram import Bot, Dispatcher
+from aiogram import Dispatcher, Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from settings import env
+from bot.routers import admin, cargo, common
+from bot.middlewares.db import DbSessionMiddleware
+from db.configs import AsyncSessionLocal
+from settings import settings
 
-BOT_TOKEN = env.BOT_TOKEN
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher(storage=MemoryStorage())
+
+# Register Middleware
+dp.update.middleware(DbSessionMiddleware(session_pool=AsyncSessionLocal))
+
+# Register Routers
+dp.include_router(common.router)
+dp.include_router(cargo.router)
+dp.include_router(admin.router)

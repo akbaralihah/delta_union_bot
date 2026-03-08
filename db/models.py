@@ -1,8 +1,10 @@
-from sqlalchemy import BIGINT, String
+from typing import List, Optional
+from sqlalchemy import BIGINT, String, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.orm import Mapped, mapped_column, Session
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from db.configs import engine, Base
+from db.configs import Base
 
 
 class User(Base):
@@ -13,27 +15,30 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(255), nullable=True)
     lang: Mapped[str] = mapped_column(String, default="UZ")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<User id={self.id} tg={self.user_id} lang={self.lang}>"
 
     @classmethod
-    def get_by_user_id(cls, user_id: int, session: Session):
-        return session.query(cls).filter(cls.user_id == user_id).first()
+    async def get_by_user_id(cls, user_id: int, session: AsyncSession) -> Optional["User"]:
+        stmt = select(cls).where(cls.user_id == user_id)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
 
     @classmethod
-    def get_user_lang(cls, user_id: int, session: Session):
-        user = session.query(User).filter(User.user_id == user_id).first()
-        return user.lang if user else "UZ"
+    async def get_user_lang(cls, user_id: int, session: AsyncSession) -> str:
+        stmt = select(cls.lang).where(cls.user_id == user_id)
+        result = await session.execute(stmt)
+        lang = result.scalar_one_or_none()
+        return lang if lang else "UZ"
 
     @classmethod
-    def update_user_lang(cls, user_id: int, new_lang: str, session: Session):
-        user = session.query(User).filter(User.user_id == user_id).first()
-        if user:
-            user.lang = new_lang
-            session.commit()
+    async def update_user_lang(cls, user_id: int, new_lang: str, session: AsyncSession) -> None:
+        stmt = update(cls).where(cls.user_id == user_id).values(lang=new_lang)
+        await session.execute(stmt)
+        await session.commit()
 
     @classmethod
-    def upsert(cls, session, user_id: int, full_name: str, username: str | None):
+    async def upsert(cls, session: AsyncSession, user_id: int, full_name: str, username: Optional[str]) -> None:
         stmt = pg_insert(cls).values(
             user_id=user_id,
             full_name=full_name,
@@ -45,12 +50,11 @@ class User(Base):
                 "username": username
             }
         )
-        session.execute(stmt)
-        session.commit()
+        await session.execute(stmt)
+        await session.commit()
 
     @classmethod
-    def get_all_user_ids(cls, session):
-        return [row[0] for row in session.query(cls.user_id).all()]
-
-
-Base.metadata.create_all(engine)
+    async def get_all_user_ids(cls, session: AsyncSession) -> List[int]:
+        stmt = select(cls.user_id)
+        result = await session.execute(stmt)
+        return list(result.scalars().all())

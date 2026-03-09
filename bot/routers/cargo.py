@@ -1,4 +1,5 @@
 import logging
+from typing import Callable, Awaitable
 
 from aiogram import Router, html, F
 from aiogram.enums import ParseMode
@@ -18,8 +19,38 @@ from db.models import User
 from settings import settings
 
 logger = logging.getLogger(__file__)
-
 router = Router()
+
+
+async def process_cargo_search(
+        msg: Message,
+        state: FSMContext,
+        session: AsyncSession,
+        search_func: Callable[[str, str], Awaitable[dict]]
+) -> None:
+    lang = await User.get_user_lang(msg.from_user.id, session=session)
+
+    response = await search_func(msg.text, lang)
+
+    message_text = response.get("message", "Unknown status")
+    await state.clear()
+
+    if response.get("status") not in (200, 404):
+        error_msg = (
+            f"⚠ <b>Error:</b> {html.quote(message_text)}\n"
+            f"👤 <b>From:</b> <a href='tg://user?id={msg.from_user.id}'>{html.quote(msg.from_user.full_name)}</a>"
+        )
+        try:
+            await msg.bot.send_message(
+                chat_id=response.get("reception"),
+                text=error_msg,
+                parse_mode=ParseMode.HTML
+            )
+        except Exception as e:
+            logger.error(f"Failed to send error to group {response.get('reception')}: {e}")
+
+    reply_markup = admin_menu_buttons(lang) if msg.from_user.id in settings.ADMINS else main_menu_buttons(lang)
+    await msg.reply(text=message_text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
 
 
 @router.message(F.text.in_([translate("UZ", "search_cargo"), translate("RU", "search_cargo")]))
@@ -36,78 +67,29 @@ async def search_command_handler(msg: Message, state: FSMContext, session: Async
 async def search_choice_cmd_handler(msg: Message, state: FSMContext, session: AsyncSession) -> None:
     lang = await User.get_user_lang(msg.from_user.id, session=session)
     await msg.answer(translate(lang, "enter_cargo_number"))
-    if msg.text == translate(lang, "full_container"):
-        await state.set_state(UserStates.full_container)
-    elif msg.text == translate(lang, "groupage_cargo"):
-        await state.set_state(UserStates.groupage_cargo_1)
-    elif msg.text == translate(lang, "cargo_tracking"):
-        await state.set_state(UserStates.groupage_cargo_2)
+
+    # Альтернатива: использование словаря вместо цепочки if/elif для большей чистоты
+    state_mapping = {
+        translate(lang, "full_container"): UserStates.full_container,
+        translate(lang, "groupage_cargo"): UserStates.groupage_cargo_1,
+        translate(lang, "cargo_tracking"): UserStates.groupage_cargo_2,
+    }
+
+    target_state = state_mapping.get(msg.text)
+    if target_state:
+        await state.set_state(target_state)
 
 
 @router.message(UserStates.full_container)
 async def container_number_handler(msg: Message, state: FSMContext, session: AsyncSession) -> None:
-    lang = await User.get_user_lang(msg.from_user.id, session=session)
-    response = await track(msg.text, lang)
-    message_text = response.get("message")
-    await state.clear()
-
-    if response["status"] not in (200, 404):
-        error_msg = f"⚠ <b>Error:</b> {html.quote(response['message'])}\n👤 <b>From:</b> <a href='tg://user?id={msg.from_user.id}'>{html.quote(msg.from_user.full_name)}</a>"
-
-        try:
-            await msg.bot.send_message(
-                chat_id=response["reception"],
-                text=error_msg,
-                parse_mode=ParseMode.HTML
-            )
-        except Exception as e:
-            logger.error(f"Failed to send error to group {response['reception']}: {e}")
-
-    reply_markup = admin_menu_buttons(lang) if msg.from_user.id in settings.ADMINS else main_menu_buttons(lang)
-    await msg.reply(text=message_text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+    await process_cargo_search(msg, state, session, track)
 
 
 @router.message(UserStates.groupage_cargo_1)
 async def cargo_number_handler(msg: Message, state: FSMContext, session: AsyncSession) -> None:
-    lang = await User.get_user_lang(msg.from_user.id, session=session)
-    response = await search_by_shipping_mark(msg.text, lang)
-    message_text = response["message"]
-    await state.clear()
-
-    if response["status"] not in (200, 404):
-        error_msg = f"⚠ <b>Error:</b> {html.quote(response['message'])}\n👤 <b>From:</b> <a href='tg://user?id={msg.from_user.id}'>{html.quote(msg.from_user.full_name)}</a>"
-
-        try:
-            await msg.bot.send_message(
-                chat_id=response["reception"],
-                text=error_msg,
-                parse_mode=ParseMode.HTML
-            )
-        except Exception as e:
-            logger.error(f"Failed to send error to group {response['reception']}: {e}")
-
-    reply_markup = admin_menu_buttons(lang) if msg.from_user.id in settings.ADMINS else main_menu_buttons(lang)
-    await msg.reply(text=message_text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+    await process_cargo_search(msg, state, session, search_by_shipping_mark)
 
 
 @router.message(UserStates.groupage_cargo_2)
 async def cargo_id_handler(msg: Message, state: FSMContext, session: AsyncSession) -> None:
-    lang = await User.get_user_lang(msg.from_user.id, session=session)
-    response = await search_cargo(msg.text, lang)
-    message_text = response["message"]
-    await state.clear()
-
-    if response["status"] not in (200, 404):
-        error_msg = f"⚠ <b>Error:</b> {html.quote(response['message'])}\n👤 <b>From:</b> <a href='tg://user?id={msg.from_user.id}'>{html.quote(msg.from_user.full_name)}</a>"
-
-        try:
-            await msg.bot.send_message(
-                chat_id=response["reception"],
-                text=error_msg,
-                parse_mode=ParseMode.HTML
-            )
-        except Exception as e:
-            logger.error(f"Failed to send error to group {response['reception']}: {e}")
-
-    reply_markup = admin_menu_buttons(lang) if msg.from_user.id in settings.ADMINS else main_menu_buttons(lang)
-    await msg.reply(text=message_text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+    await process_cargo_search(msg, state, session, search_cargo)

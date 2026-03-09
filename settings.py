@@ -9,15 +9,15 @@ class Settings(BaseSettings):
     ADMINS: List[int] = Field(default_factory=list)
     ERROR_GROUP_ID: int
 
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: int = 6379
+    REDIS_HOST: str
+    REDIS_PORT: int
     REDIS_DB_ID: int = 0
 
     DB_USER: str
     DB_PASSWORD: str
     DB_NAME: str
     DB_HOST: str
-    DB_PORT: int = 5432
+    DB_PORT: int
 
     CONTAINER_SHEET_URL: str
     CARGO_1_SHEET_URL: str

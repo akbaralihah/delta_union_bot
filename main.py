@@ -12,7 +12,7 @@ from bot.utils import periodic_sheets_sync
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    stream=sys.stdout
+    stream=sys.stdout,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ async def on_startup() -> None:
     commands = [
         BotCommand(command="start", description="Start the bot"),
         BotCommand(command="restart", description="Restart the bot"),
-        BotCommand(command="help", description="Help")
+        BotCommand(command="help", description="Help"),
     ]
     await bot.set_my_commands(commands=commands)
 

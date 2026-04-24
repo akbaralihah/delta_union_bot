@@ -9,7 +9,9 @@ from db.configs import AsyncSessionLocal, redis_client
 from settings import settings
 
 
-bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+bot = Bot(
+    token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+)
 dp = Dispatcher(storage=RedisStorage(redis=redis_client))
 
 # Register Middleware

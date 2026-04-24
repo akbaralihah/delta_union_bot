@@ -18,6 +18,7 @@ LANG = {
         "no_permission": "❌ Sizda bu amalni bajarishga ruxsat yo‘q.",
         "send_advert": "📨 Reklama matnini yuboring (matn, rasm, video yoki gif bo‘lishi mumkin):",
         "unknown_content": "❌ Noma’lum kontent turi. Faqat matn, rasm, video yoki gif yuboring.",
+        "confirm_advert": "✅ Reklamani yuborish tasdiqlaysizmi?",
         "advert_cancelled": "❌ Reklama yuborilishi bekor qilindi.",
         "advert_sent": "✅ Reklama yuborildi.\n📨 Qabul qilinganlar: {success}\n❌ Xatoliklar: {failed}",
         "lang_updated": "✅ Til saqlandi.",
@@ -52,9 +53,9 @@ LANG = {
                 "phone_number": "📞 Telefon raqami:",
                 "product_name": "📦 Mahsulot nomi:",
                 "gross_weight": "⚖ Brutto vazn:",
-                "status": "📊 Holati:"
-            }
-        }
+                "status": "📊 Holati:",
+            },
+        },
     },
     "RU": {
         "greeting": "😊 Здравствуйте, {name}!",
@@ -75,6 +76,7 @@ LANG = {
         "no_permission": "❌ У вас нет прав на это действие.",
         "send_advert": "📨 Отправьте текст рекламы (может быть текст, фото, видео или gif):",
         "unknown_content": "❌ Неизвестный тип контента. Отправьте только текст, фото, видео или gif.",
+        "confirm_advert": "✅ Подтвердите отправку рекламы?",
         "advert_cancelled": "❌ Отправка рекламы отменена.",
         "advert_sent": "✅ Реклама отправлена.\n📨 Доставлено: {success}\n❌ Ошибки: {failed}",
         "lang_updated": "✅ Язык успешно сохранен.",
@@ -90,7 +92,7 @@ LANG = {
                 "product_name": "📦 Наименование груза",
                 "container_id": "🚋 Номер контейнера",
                 "platform_id": "🚦 Номер платформы",
-                "status": "📌 Статус"
+                "status": "📌 Статус",
             },
             "groupage_cargo": {
                 "shipping_mark": "📌 Shipping mark",
@@ -109,10 +111,10 @@ LANG = {
                 "phone_number": "📞 Номер телефона:",
                 "product_name": "📦 Название товара:",
                 "gross_weight": "⚖ Вес брутто:",
-                "status": "📊 Статус:"
-            }
-        }
-    }
+                "status": "📊 Статус:",
+            },
+        },
+    },
 }
 
 
@@ -142,5 +144,5 @@ description_text = {
 ✅ *Команды:*
 - `/start` или `/restart` — 🔄 Запустить или перезапустить бота
 - `/help` — ❓ Получить помощь
-"""
+""",
 }

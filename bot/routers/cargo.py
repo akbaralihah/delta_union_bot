@@ -7,11 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bot.reply import (
-    main_menu_buttons,
-    admin_menu_buttons,
-    choice_search_menu_buttons
-)
+from bot.reply import main_menu_buttons, admin_menu_buttons, choice_search_menu_buttons
 from bot.states import UserStates
 from bot.translations import translate
 from bot.utils import track, search_by_shipping_mark, search_cargo
@@ -23,10 +19,10 @@ router = Router()
 
 
 async def process_cargo_search(
-        msg: Message,
-        state: FSMContext,
-        session: AsyncSession,
-        search_func: Callable[[str, str], Awaitable[dict]]
+    msg: Message,
+    state: FSMContext,
+    session: AsyncSession,
+    search_func: Callable[[str, str], Awaitable[dict]],
 ) -> None:
     lang = await User.get_user_lang(msg.from_user.id, session=session)
 
@@ -44,27 +40,41 @@ async def process_cargo_search(
             await msg.bot.send_message(
                 chat_id=response.get("reception"),
                 text=error_msg,
-                parse_mode=ParseMode.HTML
+                parse_mode=ParseMode.HTML,
             )
         except Exception as e:
-            logger.error(f"Failed to send error to group {response.get('reception')}: {e}")
+            logger.error(
+                f"Failed to send error to group {response.get('reception')}: {e}"
+            )
 
-    reply_markup = admin_menu_buttons(lang) if msg.from_user.id in settings.ADMINS else main_menu_buttons(lang)
-    await msg.reply(text=message_text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+    reply_markup = (
+        admin_menu_buttons(lang)
+        if msg.from_user.id in settings.ADMINS
+        else main_menu_buttons(lang)
+    )
+    await msg.reply(
+        text=message_text, reply_markup=reply_markup, parse_mode=ParseMode.HTML
+    )
 
 
-@router.message(F.text.in_([translate("UZ", "search_cargo"), translate("RU", "search_cargo")]))
-async def search_command_handler(msg: Message, state: FSMContext, session: AsyncSession) -> None:
+@router.message(
+    F.text.in_([translate("UZ", "search_cargo"), translate("RU", "search_cargo")])
+)
+async def search_command_handler(
+    msg: Message, state: FSMContext, session: AsyncSession
+) -> None:
     lang = await User.get_user_lang(msg.from_user.id, session=session)
     await msg.answer(
         text=translate(lang, "choose_search"),
-        reply_markup=choice_search_menu_buttons(lang)
+        reply_markup=choice_search_menu_buttons(lang),
     )
     await state.set_state(UserStates.search_choice_menu)
 
 
 @router.message(UserStates.search_choice_menu)
-async def search_choice_cmd_handler(msg: Message, state: FSMContext, session: AsyncSession) -> None:
+async def search_choice_cmd_handler(
+    msg: Message, state: FSMContext, session: AsyncSession
+) -> None:
     lang = await User.get_user_lang(msg.from_user.id, session=session)
     await msg.answer(translate(lang, "enter_cargo_number"))
 
@@ -81,15 +91,21 @@ async def search_choice_cmd_handler(msg: Message, state: FSMContext, session: As
 
 
 @router.message(UserStates.full_container)
-async def container_number_handler(msg: Message, state: FSMContext, session: AsyncSession) -> None:
+async def container_number_handler(
+    msg: Message, state: FSMContext, session: AsyncSession
+) -> None:
     await process_cargo_search(msg, state, session, track)
 
 
 @router.message(UserStates.groupage_cargo_1)
-async def cargo_number_handler(msg: Message, state: FSMContext, session: AsyncSession) -> None:
+async def cargo_number_handler(
+    msg: Message, state: FSMContext, session: AsyncSession
+) -> None:
     await process_cargo_search(msg, state, session, search_by_shipping_mark)
 
 
 @router.message(UserStates.groupage_cargo_2)
-async def cargo_id_handler(msg: Message, state: FSMContext, session: AsyncSession) -> None:
+async def cargo_id_handler(
+    msg: Message, state: FSMContext, session: AsyncSession
+) -> None:
     await process_cargo_search(msg, state, session, search_cargo)
